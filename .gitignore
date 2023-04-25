@@ -1,0 +1,9 @@
+target/
+.idea/
+project
+src/main/resources/
+.bsp
+.vscode
+.metals
+.bloop
+.DS_Store
