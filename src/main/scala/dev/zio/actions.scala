@@ -40,17 +40,39 @@ package object actions  {
     }
   }
 
-
-  def writeToFile(content: String): ZIO[FileConnector, Throwable, ZStream[Any, IOException, Byte]] = {
-    val oldFileStream = resourceToZStream(Paths.get(dbLocation + "db1.txt")).runCollect.flatMap { bytes =>
+  def getCurrentFileStream(): ZIO[FileConnector, Throwable, String] = {
+    resourceToZStream(Paths.get(dbLocation + "db1.txt")).runCollect.flatMap { bytes =>
       ZIO.attempt(new String(bytes.toArray, StandardCharsets.UTF_8))
     }
+  }
 
+
+  def writeToFile(content: String): ZIO[FileConnector, Throwable, ZStream[Any, IOException, Byte]] = {
+    val currentFileStream = getCurrentFileStream()
     for {
-      contentString <- oldFileStream
+      contentString <- currentFileStream
     }
     yield (ZStream.fromInputStream(new ByteArrayInputStream(contentString.concat("\n" ++ content).getBytes(StandardCharsets.UTF_8))))
 
   }
 
+
+  def deleteLine(lineNumber: Int): ZIO[FileConnector, Throwable, ZStream[Any, IOException, Byte]] = {
+    val currentFileStream = getCurrentFileStream()
+
+    for {
+      contentString <- currentFileStream
+    }
+      yield (ZStream.fromInputStream(new ByteArrayInputStream(
+        contentString
+          .split("\n")
+          .toList.zipWithIndex
+          .filter(itemIndexTuple => itemIndexTuple._2 != lineNumber + 1)
+          .map(_._1)
+          .mkString("\n")
+          .getBytes(StandardCharsets.UTF_8))))
+
+  }.debug("value")
+
 }
+

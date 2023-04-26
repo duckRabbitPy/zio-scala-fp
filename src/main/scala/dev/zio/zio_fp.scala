@@ -10,7 +10,7 @@ package zio_fp
 // must define run for Zio to run program
 // using a for comp is like flatmapping each ZIO and using the success value
 
-import actions.{dbLocation, help, viewFile, writeToFile}
+import actions.{dbLocation, deleteLine, help, viewFile, writeToFile}
 import helpers.{getEmptyStream, getUserCommand}
 import zio.{Console, Scope, ZIO, ZIOAppArgs, ZIOAppDefault}
 import zio.connect.file._
@@ -38,6 +38,14 @@ object zioTodo extends ZIOAppDefault {
           _ <- repeatLoop()
         }
           yield ()
+      case delete if delete.startsWith("d ") =>
+        for {
+          newStream <- deleteLine(command.drop(2).toInt)
+          _ <- newStream >>> writePath(Paths.get(dbLocation + "db1.txt"))
+          _ <- viewFile()
+          _ <- repeatLoop()
+        } yield ()
+
       case "v" =>
         viewFile().flatMap(_ => repeatLoop())
       case "h" =>
