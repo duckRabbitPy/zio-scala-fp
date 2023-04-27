@@ -6,4 +6,4 @@ src/main/resources/
 .vscode
 .metals
 .bloop
-.DS_Store
+**/.DS_Store

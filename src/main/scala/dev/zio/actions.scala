@@ -25,6 +25,10 @@ package object actions  {
         |""".stripMargin.trim + "\n")
   }
 
+  def showInputErrorMsg(): ZIO[Any, IOException, Unit] = {
+    Console.printLine("Command not recognised. Type 'help' for command info")
+  }
+
   def viewFile(): ZIO[FileConnector, Throwable, Unit] = {
     resourceToZStream(Paths.get(dbLocation + "db1.txt")).runCollect.flatMap { bytes =>
       ZIO.attempt {
@@ -67,12 +71,13 @@ package object actions  {
         contentString
           .split("\n")
           .toList.zipWithIndex
-          .filter(itemIndexTuple => itemIndexTuple._2 != lineNumber + 1)
+          .filter(itemIndexTuple => itemIndexTuple._2 != lineNumber)
           .map(_._1)
           .mkString("\n")
           .getBytes(StandardCharsets.UTF_8))))
 
-  }.debug("value")
+  }
+
 
 }
 
