@@ -1,15 +1,20 @@
-import helpers.resourceToZStream
+import helpers.{checkSafeLineNumber, getEmptyStream, getUserCommand, resourceToZStream}
 import zio.stream.ZStream
 import zio.{Console, ZIO}
 import zio.connect.file._
+
 import java.io.{ByteArrayInputStream, IOException}
 import java.nio.charset.StandardCharsets
 import java.nio.file.Paths
+
 
 package object actions  {
 
   val dbLocation = System.getProperty("user.dir") + "/src/main/resources/"
 
+  def greeting: ZIO[Any, IOException, Unit] = {
+    Console.printLine("Welcome to my Zio CLI tool!" + "\n\n(Commands: v, a \"task\", d \"task number\", q, help)")
+  }
 
   def help(): ZIO[Any, IOException, Unit] = {
     Console.printLine("\n" +
@@ -76,6 +81,46 @@ package object actions  {
           .mkString("\n")
           .getBytes(StandardCharsets.UTF_8))))
 
+  }
+
+  def repeatLoop(): ZIO[FileConnector, Throwable, Unit] = {
+    getUserCommand().flatMap(nextCommand => handleUserCommand(nextCommand))
+  }
+
+  def handleUserCommand(command: String): ZIO[FileConnector, Throwable, Unit] = {
+    command match {
+      case add if add.startsWith("a ") =>
+        for {
+          newStream <- writeToFile(command.drop(2))
+          _ <- newStream >>> writePath(Paths.get(dbLocation + "db1.txt"))
+          _ <- viewFile()
+          _ <- repeatLoop()
+        }
+        yield ()
+      case delete if delete.startsWith("d ") =>
+        for {
+          lineNumber <- checkSafeLineNumber(command.drop(2))
+          newStream <- deleteLine(lineNumber)
+          _ <- newStream >>> writePath(Paths.get(dbLocation + "db1.txt"))
+          _ <- viewFile()
+          _ <- repeatLoop()
+        } yield ()
+      case "v" =>
+        viewFile().flatMap(_ => repeatLoop())
+      case "help" =>
+        help().flatMap(_ => repeatLoop())
+      case "clear" =>
+        for {
+          emptyStream <- getEmptyStream()
+          _ <- emptyStream >>> writePath(Paths.get(dbLocation + "db1.txt"))
+          _ <- repeatLoop()
+        }
+        yield ()
+      case "q" =>
+        ZIO.succeed(println("Goodbye!"))
+      case _ =>
+        showInputErrorMsg().flatMap(_ => repeatLoop())
+    }
   }
 
 

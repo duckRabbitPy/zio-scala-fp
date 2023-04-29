@@ -1,11 +1,10 @@
-import zio.{Task, ZIO}
+import zio.connect.file._
 import zio.stream.ZStream
+import zio.{Task, ZIO}
 
 import java.io.IOException
 import java.nio.file.Path
 import scala.io.StdIn
-import zio.connect.file._
-
 import scala.util.Try
 
 package object helpers {
@@ -21,13 +20,13 @@ package object helpers {
     ZIO.attempt(StdIn.readLine("Enter command here: "))
   }
 
-  def checkSafeLineNumber(str: String): Task[Int] = {
+  def checkSafeLineNumber(maybeLineNumber: String): Task[Int] = {
     ZIO
-      .fromTry(Try(str.toInt))
+      .fromTry(Try(maybeLineNumber.toInt))
       .flatMap(num =>
-        if (num == 0)
+        if (num == 0) {
           ZIO.fail(new Exception("Line number must be above 1"))
-        else
+        } else
           ZIO.succeed(num)
       )
   }
