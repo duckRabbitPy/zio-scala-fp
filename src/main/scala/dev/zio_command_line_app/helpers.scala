@@ -24,7 +24,7 @@ package object helpers {
     ZIO
       .fromTry(Try(maybeLineNumber.toInt))
       .flatMap(num =>
-        if (num == 0 || num > contentString.length) {
+        if (num == 0 || num > contentString.split("\n").length - 1) {
           ZIO.fail(new Exception(s"Line number must be between 1 and task length (${contentString.split("\n").length})"))
         }
          else

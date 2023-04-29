@@ -16,6 +16,7 @@ package object actions  {
     Console.printLine("Welcome to my Zio CLI tool!" + "\n\n(Commands: v, a \"task\", d \"task number\", q, help)")
   }
 
+
   def help(): ZIO[Any, IOException, Unit] = {
     Console.printLine("\n" +
       """
@@ -65,22 +66,28 @@ package object actions  {
 
   }
 
+  def deleteLine(lineNumber: String) = {
 
-  def deleteLine(lineNumber: String): ZIO[FileConnector, Throwable, ZStream[Any, IOException, Byte]] = {
-    val currentFileStream = getCurrentFileStream()
-
-    for {
-      contentString <- currentFileStream
+    val throwableStream = for {
+      contentString <- getCurrentFileStream()
       safeLineNumber <- checkSafeLineNumber(lineNumber, contentString)
     }
-      yield (ZStream.fromInputStream(new ByteArrayInputStream(
-        contentString
+    yield ZStream.fromInputStream(new ByteArrayInputStream(
+      contentString
           .split("\n")
           .toList.zipWithIndex
           .filter(itemIndexTuple => itemIndexTuple._2 != safeLineNumber)
           .map(_._1)
           .mkString("\n")
-          .getBytes(StandardCharsets.UTF_8))))
+          .getBytes(StandardCharsets.UTF_8)))
+    
+    for {
+      writeEffectOrIOException <- throwableStream.fold(
+        err => Console.printLine(err),
+        stream => stream >>> writePath(Paths.get(dbLocation + "db1.txt")))
+        _ <- writeEffectOrIOException
+    }
+      yield ()
 
   }
 
@@ -100,8 +107,7 @@ package object actions  {
         yield ()
       case delete if delete.startsWith("d ") =>
         for {
-          newStream <- deleteLine(command.drop(2))
-          _ <- newStream >>> writePath(Paths.get(dbLocation + "db1.txt"))
+          _ <- deleteLine(command.drop(2))
           _ <- viewFile()
           _ <- repeatLoop()
         } yield ()
