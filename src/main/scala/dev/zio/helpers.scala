@@ -20,13 +20,14 @@ package object helpers {
     ZIO.attempt(StdIn.readLine("Enter command here: "))
   }
 
-  def checkSafeLineNumber(maybeLineNumber: String): Task[Int] = {
+  def checkSafeLineNumber(maybeLineNumber: String, contentString: String): Task[Int] = {
     ZIO
       .fromTry(Try(maybeLineNumber.toInt))
       .flatMap(num =>
-        if (num == 0) {
-          ZIO.fail(new Exception("Line number must be above 1"))
-        } else
+        if (num == 0 || num > contentString.length) {
+          ZIO.fail(new Exception(s"Line number must be between 1 and task length (${contentString.split("\n").length})"))
+        }
+         else
           ZIO.succeed(num)
       )
   }

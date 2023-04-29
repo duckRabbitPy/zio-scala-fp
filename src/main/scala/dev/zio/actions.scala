@@ -1,7 +1,7 @@
 import helpers.{checkSafeLineNumber, getEmptyStream, getUserCommand, resourceToZStream}
+import zio.connect.file._
 import zio.stream.ZStream
 import zio.{Console, ZIO}
-import zio.connect.file._
 
 import java.io.{ByteArrayInputStream, IOException}
 import java.nio.charset.StandardCharsets
@@ -66,17 +66,18 @@ package object actions  {
   }
 
 
-  def deleteLine(lineNumber: Int): ZIO[FileConnector, Throwable, ZStream[Any, IOException, Byte]] = {
+  def deleteLine(lineNumber: String): ZIO[FileConnector, Throwable, ZStream[Any, IOException, Byte]] = {
     val currentFileStream = getCurrentFileStream()
 
     for {
       contentString <- currentFileStream
+      safeLineNumber <- checkSafeLineNumber(lineNumber, contentString)
     }
       yield (ZStream.fromInputStream(new ByteArrayInputStream(
         contentString
           .split("\n")
           .toList.zipWithIndex
-          .filter(itemIndexTuple => itemIndexTuple._2 != lineNumber)
+          .filter(itemIndexTuple => itemIndexTuple._2 != safeLineNumber)
           .map(_._1)
           .mkString("\n")
           .getBytes(StandardCharsets.UTF_8))))
@@ -99,8 +100,7 @@ package object actions  {
         yield ()
       case delete if delete.startsWith("d ") =>
         for {
-          lineNumber <- checkSafeLineNumber(command.drop(2))
-          newStream <- deleteLine(lineNumber)
+          newStream <- deleteLine(command.drop(2))
           _ <- newStream >>> writePath(Paths.get(dbLocation + "db1.txt"))
           _ <- viewFile()
           _ <- repeatLoop()
