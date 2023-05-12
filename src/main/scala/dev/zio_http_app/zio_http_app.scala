@@ -12,6 +12,7 @@ import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Path, Paths}
 import _root_.java.io.IOException
 import java.time.LocalDateTime
+import scala.collection.immutable
 
 // To run with vscode metals + P: metals.run-current-file
 // key binding ctrl + option + cmd + r
@@ -53,15 +54,32 @@ object zio_http_app extends ZIOAppDefault {
 
   }
 
+  def addSeperator(
+      str: String,
+      seperator: String
+  ) = {
+    str match {
+      case "" => Left(None)
+      case _  => Right(str + seperator)
+    }
+
+  }
+
   def appendToExistingFile(
       content: String,
       targetFilePath: Path,
       seperator: String = "\n"
   ): ZIO[FileConnector, Throwable, ZStream[Any, Throwable, Byte]] = {
+
+    val x = addSeperator(content, seperator).getOrElse("EMPTY ENTRY!" + "\n")
     val throwableNewStream =
       getFileContentString(targetFilePath)
         .map(fileContent =>
-          contentStringToZStream(fileContent.concat(seperator ++ content))
+          contentStringToZStream(
+            fileContent.concat(
+              x
+            )
+          )
         )
 
     for {
@@ -75,18 +93,30 @@ object zio_http_app extends ZIOAppDefault {
     ZIO.attempt(maybeLineNumber.toInt)
   }
 
-  def writeToTxtStore(
-      stream: ZStream[Any, IOException, Byte]
-  ) = {
-
+  def saveToVersionHistory(stream: ZStream[Any, IOException, Byte]) = {
     for {
       txt <- ZBytestreamToContentString(stream)
       _ <- appendToExistingFile(
         txt,
         History,
-        "\n" + LocalDateTime.now().toString()
+        "\n" + LocalDateTime.now().toString() + "\n"
       )
+      _ <- appendToExistingFile(
+        "\n" +
+          "-----------------------",
+        History
+      )
+    } yield stream
+
+  }
+
+  def writeToTxtStore(
+      stream: ZStream[Any, IOException, Byte]
+  ) = {
+
+    for {
       _ <- stream >>> writePath(Paths.get(dbLocation + "db1.txt"))
+      _ <- saveToVersionHistory(stream)
     } yield stream
 
   }
