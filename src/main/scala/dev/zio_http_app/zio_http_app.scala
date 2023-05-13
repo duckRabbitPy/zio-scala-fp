@@ -13,6 +13,7 @@ import java.nio.file.{Files, Path, Paths}
 import _root_.java.io.IOException
 import java.time.LocalDateTime
 import scala.collection.immutable
+import zio.ZIOApp
 
 object zio_http_app extends ZIOAppDefault {
 
@@ -22,6 +23,8 @@ object zio_http_app extends ZIOAppDefault {
   val History = Paths.get(
     System.getProperty("user.dir") + "/src/main/resources/versionHistory.txt"
   )
+
+  val taskSeperator = "-----------------------"
 
   def getFileContentString(
       filePath: Path
@@ -33,7 +36,6 @@ object zio_http_app extends ZIOAppDefault {
   }
 
   def contentStringToZStream(string: String) = {
-
     ZStream
       .fromInputStream(
         new ByteArrayInputStream(
@@ -91,17 +93,17 @@ object zio_http_app extends ZIOAppDefault {
     ZIO.attempt(maybeLineNumber.toInt)
   }
 
-  def saveToVersionHistory(stream: ZStream[Any, IOException, Byte]) = {
+  def saveToVersionHistory(stream: ZStream[Any, Throwable, Byte]) = {
     for {
       txt <- ZBytestreamToContentString(stream)
       _ <- appendToExistingFile(
         txt,
         History,
-        "\n" + LocalDateTime.now().toString() + "\n"
+        "\n" + "Updated at: " + LocalDateTime.now().toString() + "\n"
       )
       _ <- appendToExistingFile(
         "\n" +
-          "-----------------------",
+          taskSeperator,
         History
       )
     } yield stream
@@ -111,7 +113,6 @@ object zio_http_app extends ZIOAppDefault {
   def writeToTxtStore(
       stream: ZStream[Any, IOException, Byte]
   ) = {
-
     for {
       _ <- stream >>> writePath(Paths.get(dbLocation + "db1.txt"))
       _ <- saveToVersionHistory(stream)
@@ -141,6 +142,13 @@ object zio_http_app extends ZIOAppDefault {
       _ <- writeToTxtStore(stream)
     } yield stream
 
+  }
+
+  def foldIntoResponse(maybeResult: ZIO[Any, Any, Response]) = {
+    maybeResult.fold(
+      _ => Response.status(Status.BadRequest),
+      successResponse => successResponse
+    )
   }
 
   val app: App[Any] =
@@ -178,21 +186,43 @@ object zio_http_app extends ZIOAppDefault {
 
     }
 
-  val collectZIOApp: App[Any] = Http.collectZIO {
-    case req @ Method.POST -> !! / "add-task" => {
-      val written = for {
-        input <- req.body.asString
-        newFileContent <- appendToExistingFile(input, Store).provideLayer(
+  def penultimateItemInArray(array: Array[String]): String = {
+    if (array.length >= 2) array(array.length - 3)
+    else array(1)
+
+  }
+
+  val collectZIOApp: Http[Any, Response, Request, Response] = Http.collectZIO {
+    case req @ Method.GET -> !! / "undo" => {
+      val maybeLastList = for {
+        pastLists <- getFileContentString(History)
+      } yield (Response(
+        body = Body
+          .fromString(penultimateItemInArray(pastLists.split(taskSeperator))),
+        status = Status.Ok
+      ))
+
+      foldIntoResponse(
+        maybeLastList.provideLayer(
           zio.connect.file.fileConnectorLiveLayer
         )
+      )
+
+    }
+    case req @ Method.POST -> !! / "add-task" => {
+      val maybeAddedTaskList = for {
+        input <- req.body.asString
+        newFileContent <- appendToExistingFile(input, Store)
+        _ <- saveToVersionHistory(newFileContent)
         newTasks <- ZBytestreamToContentString(newFileContent)
       } yield (
         Response(body = Body.fromString(newTasks), status = Status.Ok)
       )
 
-      written.fold(
-        _ => Response.status(Status.BadRequest),
-        successResponse => successResponse
+      foldIntoResponse(
+        maybeAddedTaskList.provideLayer(
+          zio.connect.file.fileConnectorLiveLayer
+        )
       )
 
     }
@@ -205,14 +235,14 @@ object zio_http_app extends ZIOAppDefault {
         )
       } yield (updatedFileContent)
 
-      val res = for {
+      val maybeNewList = for {
         newFileContent <- maybeNewFileContent
         newTasks <- ZBytestreamToContentString(newFileContent)
       } yield (
         Response(body = Body.fromString(newTasks), status = Status.Ok)
       )
 
-      res.fold(_ => Response.status(Status.BadRequest), success => success)
+      foldIntoResponse(maybeNewList)
     }
 
   }

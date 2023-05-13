@@ -2,7 +2,8 @@ target/
 .idea/
 project/*
 !project/plugins.sbt
-src/main/resources/
+src/main/resources/*
+!src/main/resources/client.html
 .bsp
 .vscode
 .metals
