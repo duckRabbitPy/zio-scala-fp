@@ -14,8 +14,6 @@ import _root_.java.io.IOException
 import java.time.LocalDateTime
 import scala.collection.immutable
 
-// To run with vscode metals + P: metals.run-current-file
-// key binding ctrl + option + cmd + r
 object zio_http_app extends ZIOAppDefault {
 
   val Store =

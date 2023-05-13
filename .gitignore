@@ -1,6 +1,7 @@
 target/
 .idea/
-project
+project/*
+!project/plugins.sbt
 src/main/resources/
 .bsp
 .vscode
