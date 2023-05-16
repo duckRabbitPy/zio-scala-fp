@@ -3,6 +3,11 @@
   <head>
     <meta charset="UTF-8" />
     <title>Simple Form</title>
+    <style>
+      .undoModeStyle {
+        color: blue;
+      }
+    </style>
   </head>
   <body onload="getTasks()">
     <form id="Form" onsubmit="addTask()">
@@ -51,7 +56,7 @@
         readStream();
       }
 
-      function addTasksToDOM(lines) {
+      function addTasksToDOM(lines, omitDeleteBtn) {
         if (lines.length === 1 && lines[0].length < 1) return;
         lines.forEach((line, index) => {
           const node = document.createElement("li");
@@ -149,6 +154,9 @@
       }
 
       function undoLast() {
+        const output = document.getElementById("Output");
+        output.innerHTML = "";
+        output.classList.add("undoModeStyle");
         fetch("http://localhost:9000/undo")
           .then((response) => {
             const stream = response.body;

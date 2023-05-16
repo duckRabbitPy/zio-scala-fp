@@ -35,7 +35,9 @@ object zio_http_app extends ZIOAppDefault {
 
   }
 
-  def contentStringToZStream(string: String) = {
+  def contentStringToZStream(
+      string: String
+  ): ZStream[Any, IOException, Byte] = {
     ZStream
       .fromInputStream(
         new ByteArrayInputStream(
@@ -99,7 +101,7 @@ object zio_http_app extends ZIOAppDefault {
       _ <- appendToExistingFile(
         txt,
         History,
-        "\n" + "Updated at: " + LocalDateTime.now().toString() + "\n"
+        "Updated at: " + LocalDateTime.now().toString()
       )
       _ <- appendToExistingFile(
         "\n" +
@@ -144,11 +146,19 @@ object zio_http_app extends ZIOAppDefault {
 
   }
 
-  def foldIntoResponse(maybeResult: ZIO[Any, Any, Response]) = {
-    maybeResult.fold(
-      _ => Response.status(Status.BadRequest),
-      successResponse => successResponse
-    )
+  def foldIntoFinalResponse(maybeResult: ZIO[Any, Any, Response]) = {
+
+    maybeResult
+      .mapError(e => CustomError(e.toString()))
+      .fold(
+        e =>
+          Response(
+            status = Status.BadRequest,
+            headers = Headers.empty,
+            body = Body.fromString(e.errorMessage)
+          ),
+        successResponse => successResponse
+      )
   }
 
   val app: App[Any] =
@@ -186,24 +196,55 @@ object zio_http_app extends ZIOAppDefault {
 
     }
 
-  def penultimateItemInArray(array: Array[String]): String = {
-    if (array.length >= 2) array(array.length - 3)
-    else array(1)
+  sealed trait MyError
+  case class CustomError(errorMessage: String) extends MyError
 
+  def LastItemInHistory(
+      maybeVersionHistory: ZIO[FileConnector, Throwable, String]
+  ): ZIO[FileConnector, Throwable, ZIO[Any, CustomError, String]] = {
+
+    val maybeHistoryArr = for {
+      versionHistory <- maybeVersionHistory
+    } yield versionHistory.split(taskSeperator)
+
+    for {
+      historyArr <- maybeHistoryArr
+    } yield {
+      if (historyArr.length > 1) {
+        ZIO.succeed(historyArr(historyArr.length - 2))
+      } else {
+        ZIO.fail(CustomError("No items in history"))
+      }
+    }
+
+  }
+
+  def removeLastTaskItem(str: String): String = {
+    // remove metadata and last item
+    str.split("\n").dropRight(2).mkString("\n")
   }
 
   val collectZIOApp: Http[Any, Response, Request, Response] = Http.collectZIO {
     case req @ Method.GET -> !! / "undo" => {
-      val maybeLastList = for {
+      val versionHistory = for {
         pastLists <- getFileContentString(History)
-      } yield (Response(
-        body = Body
-          .fromString(penultimateItemInArray(pastLists.split(taskSeperator))),
-        status = Status.Ok
-      ))
+      } yield (pastLists)
 
-      foldIntoResponse(
-        maybeLastList.provideLayer(
+      val maybeSuccessResponse = for {
+        tasksOrUndoErr <- LastItemInHistory(versionHistory)
+        tasks <- tasksOrUndoErr
+      } yield (
+        Response(
+          body = Body
+            .fromString(
+              removeLastTaskItem(tasks)
+            ),
+          status = Status.Ok
+        )
+      )
+
+      foldIntoFinalResponse(
+        maybeSuccessResponse.provideLayer(
           zio.connect.file.fileConnectorLiveLayer
         )
       )
@@ -219,7 +260,7 @@ object zio_http_app extends ZIOAppDefault {
         Response(body = Body.fromString(newTasks), status = Status.Ok)
       )
 
-      foldIntoResponse(
+      foldIntoFinalResponse(
         maybeAddedTaskList.provideLayer(
           zio.connect.file.fileConnectorLiveLayer
         )
@@ -242,7 +283,7 @@ object zio_http_app extends ZIOAppDefault {
         Response(body = Body.fromString(newTasks), status = Status.Ok)
       )
 
-      foldIntoResponse(maybeNewList)
+      foldIntoFinalResponse(maybeNewList)
     }
 
   }
