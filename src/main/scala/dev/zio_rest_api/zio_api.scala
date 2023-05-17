@@ -42,6 +42,28 @@ object zio_http_app extends ZIOAppDefault {
         )
 
     }
+
+    case req @ Method.POST -> !! / "store" => {
+
+      val maybeLog = for {
+        logJSON <- ZIO
+          .succeed(req.body.asString)
+          .map(s => s.map(str => Console.println(str)))
+        _ <- logJSON
+
+      } yield (Response(body = Body.fromString("ok"), status = Status.Ok))
+
+      maybeLog.fold(
+        err =>
+          Response(
+            body = Body.fromString("error"),
+            status = Status.InternalServerError
+          ),
+        ok => Response(body = Body.fromString("ok"), status = Status.Ok)
+      )
+
+    }
+
   }
   val PORT = 9000
 
