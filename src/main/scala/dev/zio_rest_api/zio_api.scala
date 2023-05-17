@@ -13,37 +13,9 @@ import java.time.LocalDateTime
 import scala.collection.immutable
 import zio.json._
 import com.github.tototoshi.csv.CSVReader
+import fileUtils._
 
 object zio_http_app extends ZIOAppDefault {
-
-  case class Mushroom(name: String)
-
-  case class MushroomCollection(mushrooms: List[Mushroom])
-
-  object Mushroom {
-    implicit val encoder: JsonEncoder[Mushroom] =
-      DeriveJsonEncoder.gen[Mushroom]
-  }
-
-  object MushroomCollection {
-    implicit val encoder: JsonEncoder[MushroomCollection] =
-      DeriveJsonEncoder.gen[MushroomCollection]
-  }
-
-  val Store =
-    System.getProperty(
-      "user.dir"
-    ) + "/src/main/resources/CSVstore.csv"
-
-  def readCSVRow(): ZIO[Any, Throwable, List[Mushroom]] = {
-    val reader = ZIO
-      .attempt(CSVReader.open(new File(Store)))
-
-    val maybeCSV = reader.map(safeReader => safeReader.all())
-
-    maybeCSV.map(rows => rows.head.map(str => Mushroom(str)))
-
-  }
 
   val zioApi: Http[Any, Response, Request, Response] = Http.collectZIO {
     case req @ Method.GET -> !! / "mushroom" => {
@@ -51,36 +23,25 @@ object zio_http_app extends ZIOAppDefault {
         Response.json(Mushroom("amanita muscaria").toJsonPretty)
       )
     }
-    case req @ Method.GET -> !! / "mushrooms" => {
-      readCSVRow()
+
+    case req @ Method.GET -> !! / "rows" => {
+      readCSVwithHeaders()
         .fold(
           fail =>
             Response
               .status(Status.InternalServerError),
-          mushroomsFromCSV =>
+          dataFromCSV => {
+
             Response
-              .json(MushroomCollection(mushroomsFromCSV).toJsonPretty)
+              .json(
+                JsonBody(
+                  parseIntoRows(dataFromCSV)
+                ).toJsonPretty
+              )
+          }
         )
-    }
-    case req @ Method.POST -> !! / "csv" => {
-      val reader = ZIO
-        .attempt(CSVReader.open(new File(Store)))
-        .debug("store")
-
-      val maybeCSV = reader
-        .map(safeReader => Console.println(safeReader.all()))
-
-      val good = for {
-        _ <- maybeCSV
-      } yield (ZIO.succeed(Response.text("mnice")))
-
-      good.fold(
-        f => Response.status(Status.BadRequest),
-        s => Response.text("success")
-      )
 
     }
-
   }
   val PORT = 9000
 
