@@ -20,8 +20,8 @@ object Row {
 case class Field(name: String)
 
 enum DefinedSortOption(val value: String):
-  case Asc extends DefinedSortOption("Asc")
-  case Dsc extends DefinedSortOption("Dsc")
+  case asc extends DefinedSortOption("asc")
+  case dsc extends DefinedSortOption("dsc")
 
 case class SortOption(option: DefinedSortOption)
 
