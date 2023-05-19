@@ -17,6 +17,14 @@ object Row {
     DeriveJsonEncoder.gen[Row]
 }
 
+case class Field(name: String)
+
+enum DefinedSortOption(val value: String):
+  case Asc extends DefinedSortOption("Asc")
+  case Dsc extends DefinedSortOption("Dsc")
+
+case class SortOption(option: DefinedSortOption)
+
 case class JsonBody(data: List[Row])
 
 object JsonBody {

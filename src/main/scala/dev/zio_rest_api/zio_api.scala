@@ -18,18 +18,6 @@ import pureUtils._
 
 object zio_http_app extends ZIOAppDefault {
 
-  def sortById(data: List[Row]): List[Row] = {
-    data.sortBy { row =>
-      row.entry.get("id") match {
-        case Some(id: String) => id.toInt
-        case _ =>
-          Int.MaxValue
-      }
-    }
-  }
-
-  case class Field(name: String)
-
   val zioApi: Http[Any, Response, Request, Response] = Http.collectZIO {
     case req @ Method.GET -> !! / "mushroom" => {
       ZIO.succeed(
@@ -48,10 +36,19 @@ object zio_http_app extends ZIOAppDefault {
 
     case req @ Method.GET -> !! / "rows" => {
 
-      val sorting =
+      val maybeFieldAndSortParameter =
         req.url.queryParams
           .get("sort")
           .map(operation => getFieldAndSortParameter(operation.asString))
+
+      val fieldAndSortParameter = maybeFieldAndSortParameter.flatten
+
+      val field =
+        fieldAndSortParameter.map(pair => pair._1).getOrElse(Field("id"))
+
+      val sort = fieldAndSortParameter
+        .map(pair => pair._2)
+        .getOrElse(DefinedSortOption.Asc)
 
       readCSVwithHeaders()
         .fold(
@@ -59,7 +56,9 @@ object zio_http_app extends ZIOAppDefault {
             Response
               .status(Status.InternalServerError),
           dataFromCSV => {
-            Response.text(sortById(dataFromCSV).toJson)
+            Response.json(
+              sortByField(field, sort, dataFromCSV).toJson
+            )
           }
         )
 

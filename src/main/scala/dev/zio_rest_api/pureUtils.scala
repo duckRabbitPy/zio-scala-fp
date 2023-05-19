@@ -2,12 +2,6 @@ package dev.zio_rest_api
 
 object pureUtils {
 
-  enum DefinedSortOption(val value: String):
-    case Asc extends DefinedSortOption("Asc")
-    case Dsc extends DefinedSortOption("Dsc")
-
-  case class SortOption(option: DefinedSortOption)
-
   def getSortOption(str: String): DefinedSortOption =
     str match
       case DefinedSortOption.Asc.value | DefinedSortOption.Dsc.value =>
@@ -22,11 +16,25 @@ object pureUtils {
       case array if array.length >= 2 =>
         Some(
           (
-            zio_http_app.Field(array(0)),
+            Field(array(0)),
             getSortOption(array(1))
           )
         )
       case _ => None
+    }
+  }
+
+  def sortByField(
+      fieldName: Field,
+      sortDirection: DefinedSortOption,
+      data: List[Row]
+  ): List[Row] = {
+    data.sortBy { row =>
+      row.entry.get("id") match {
+        case Some(id: String) => id.toInt
+        case _ =>
+          Int.MaxValue
+      }
     }
   }
 }
