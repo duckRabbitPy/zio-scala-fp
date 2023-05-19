@@ -14,8 +14,21 @@ import scala.collection.immutable
 import zio.json._
 import com.github.tototoshi.csv.CSVReader
 import fileUtils._
+import pureUtils._
 
 object zio_http_app extends ZIOAppDefault {
+
+  def sortById(data: List[Row]) = {
+    val sortedData = data.sortBy { map =>
+      map.entry.get("id") match {
+        case Some(id: String) => id.toInt
+        case _ =>
+          Int.MaxValue
+      }
+    }
+  }
+
+  case class Field(name: String)
 
   val zioApi: Http[Any, Response, Request, Response] = Http.collectZIO {
     case req @ Method.GET -> !! / "mushroom" => {
@@ -24,20 +37,29 @@ object zio_http_app extends ZIOAppDefault {
       )
     }
 
+    case req @ Method.GET -> !! / "params" =>
+      ZIO.succeed(
+        Response(
+          Status.Ok,
+          body = Body.fromString(req.url.queryParams.toString()),
+          headers = Headers.empty
+        )
+      )
+
     case req @ Method.GET -> !! / "rows" => {
+
+      val sorting =
+        req.url.queryParams
+          .get("sort")
+          .map(operation => getFieldAndSortParameter(operation.asString))
+
       readCSVwithHeaders()
         .fold(
           fail =>
             Response
               .status(Status.InternalServerError),
           dataFromCSV => {
-
-            Response
-              .json(
-                JsonBody(
-                  parseIntoRows(dataFromCSV)
-                ).toJsonPretty
-              )
+            Response.text(dataFromCSV.toJson)
           }
         )
 
@@ -63,6 +85,16 @@ object zio_http_app extends ZIOAppDefault {
       )
 
     }
+
+    case _ =>
+      ZIO.succeed(
+        Response(
+          body = Body.fromString(
+            "No route was found matching the URL and request method"
+          ),
+          status = Status.NotFound
+        )
+      )
 
   }
   val PORT = 9000

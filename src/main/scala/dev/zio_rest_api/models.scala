@@ -10,15 +10,14 @@ object Mushroom {
     DeriveJsonEncoder.gen[Mushroom]
 }
 
-case class Rows(
-    Rows: List[Map[String, List[String]]]
-)
-object Rows {
-  implicit val encoder: JsonEncoder[Rows] =
-    DeriveJsonEncoder.gen[Rows]
+case class Row(entry: Map[String, String])
+
+object Row {
+  implicit val encoder: JsonEncoder[Row] =
+    DeriveJsonEncoder.gen[Row]
 }
 
-case class JsonBody(data: Rows)
+case class JsonBody(data: List[Row])
 
 object JsonBody {
   implicit val encoder: JsonEncoder[JsonBody] =
