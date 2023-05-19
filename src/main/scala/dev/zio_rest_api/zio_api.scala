@@ -18,9 +18,9 @@ import pureUtils._
 
 object zio_http_app extends ZIOAppDefault {
 
-  def sortById(data: List[Row]) = {
-    val sortedData = data.sortBy { map =>
-      map.entry.get("id") match {
+  def sortById(data: List[Row]): List[Row] = {
+    data.sortBy { row =>
+      row.entry.get("id") match {
         case Some(id: String) => id.toInt
         case _ =>
           Int.MaxValue
@@ -59,7 +59,7 @@ object zio_http_app extends ZIOAppDefault {
             Response
               .status(Status.InternalServerError),
           dataFromCSV => {
-            Response.text(dataFromCSV.toJson)
+            Response.text(sortById(dataFromCSV).toJson)
           }
         )
 
