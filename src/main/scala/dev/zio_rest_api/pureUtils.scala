@@ -2,6 +2,8 @@ package dev.zio_rest_api
 
 import zio.http.QueryParams
 import zio.Chunk
+import scala.util.Try
+import java.time.LocalDate
 
 object pureUtils {
 
@@ -70,6 +72,16 @@ object pureUtils {
 
   }
 
+  val schema = Map("id" -> "")
+
+  def canParseToInt(str: String): Boolean = {
+    Try(str.toInt).isSuccess
+  }
+
+  def canParseToDate(str: String): Boolean = {
+    Try(LocalDate.parse(str)).isSuccess
+  }
+
   def sortByField(
       field: Field,
       sortDirection: DefinedSortOption,
@@ -79,14 +91,24 @@ object pureUtils {
       val x = row.entry.get(field.name)
 
       x match {
-        case Some(id: String) if id == "id" => id.toInt
-        case Some(culinary_score: String)
-            if culinary_score == "culinary_score" =>
-          culinary_score.toInt
+        case Some(numericStr: String) if canParseToInt(numericStr) =>
+          numericStr.toInt
+        case Some(dateStr: String) if canParseToDate(dateStr) =>
+          LocalDate.parse(dateStr).toEpochDay
+        case Some(alphaNumericStr: String) => alphaNumericStr
         case _ =>
           Int.MaxValue
       }
-    }
+    }(Ordering.fromLessThan { (a, b) =>
+      (a, b) match {
+        case (numericA: Int, numericB: Int) => numericA < numericB
+        case (dateA: Long, dateB: Long)     => dateA < dateB
+        case (alphaNumericA: String, alphaNumericB: String) =>
+          alphaNumericA < alphaNumericB
+        case _ => false
+      }
+    })
+
     sortDirection match {
       case DefinedSortOption.asc => sortedData
       case DefinedSortOption.dsc => sortedData.reverse
