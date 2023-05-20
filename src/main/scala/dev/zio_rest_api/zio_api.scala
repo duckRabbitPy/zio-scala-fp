@@ -36,9 +36,7 @@ object zio_http_app extends ZIOAppDefault {
 
     case req @ Method.GET -> !! / "rows" => {
 
-      val sortParams = getFieldAndSortParameter(req.url.queryParams)
-
-      // ZIO.succeed(Response.text(s"${sortParams.field}  ${sortParams.order}"))
+      val sortParams = getFirstFieldAndSortParameter(req.url.queryParams)
 
       readCSVwithHeaders()
         .fold(

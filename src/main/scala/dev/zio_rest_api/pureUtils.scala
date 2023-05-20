@@ -1,6 +1,7 @@
 package dev.zio_rest_api
 
 import zio.http.QueryParams
+import zio.Chunk
 
 object pureUtils {
 
@@ -10,7 +11,7 @@ object pureUtils {
         DefinedSortOption.valueOf(str)
       case _ => DefinedSortOption.asc
 
-  def parseColonDelimitedParam(
+  def parseColonDelimitedString(
       colonDelimitedString: String
   ) = {
     val optionArray = colonDelimitedString.split(":")
@@ -28,24 +29,45 @@ object pureUtils {
 
   case class FieldAndSortParameter(field: Field, order: DefinedSortOption)
 
-  def getFieldAndSortParameter(
+  def processFieldAndSortParameters(
+      maybefieldAndSortParameters: Option[
+        Chunk[Option[(Field, DefinedSortOption)]]
+      ]
+  ): List[FieldAndSortParameter] = {
+    val DefaultSorting =
+      FieldAndSortParameter(Field("id"), DefinedSortOption.asc)
+
+    maybefieldAndSortParameters match {
+      case Some(chunk) =>
+        val parameters = chunk.collect { case Some(parameterPair) =>
+          parameterPair
+        }.toList
+
+        if (parameters.nonEmpty)
+          parameters.map { case (field, sortOption) =>
+            FieldAndSortParameter(field, sortOption)
+          }
+        else
+          List(DefaultSorting)
+
+      case None => List(DefaultSorting)
+    }
+  }
+
+  def getFirstFieldAndSortParameter(
       queryParams: QueryParams
   ): FieldAndSortParameter = {
-    val maybefieldAndSortParameter = queryParams
+    val maybeFieldAndSortParameters = queryParams
       .get("sort")
-      .map(colonDelimitedChunk =>
-        parseColonDelimitedParam(colonDelimitedChunk.asString)
+      .map(delimitedStrings =>
+        (delimitedStrings
+          .map(delimitedString => parseColonDelimitedString(delimitedString)))
       )
-      .flatten
 
-    val field =
-      maybefieldAndSortParameter.map(pair => pair._1).getOrElse(Field("id"))
-
-    val order = maybefieldAndSortParameter
-      .map(pair => pair._2)
-      .getOrElse(DefinedSortOption.asc)
-
-    FieldAndSortParameter(field, order)
+    processFieldAndSortParameters(
+      maybeFieldAndSortParameters
+    )(0)
+    // todo, work with mulitple sort queries
 
   }
 
