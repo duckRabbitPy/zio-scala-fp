@@ -36,7 +36,7 @@ object zio_http_app extends ZIOAppDefault {
 
     case req @ Method.GET -> !! / "rows" => {
 
-      val sortParams = getFirstFieldAndSortParameter(req.url.queryParams)
+      val sortParams = getFieldAndSortParameters(req.url.queryParams)
 
       readCSVwithHeaders()
         .fold(
@@ -45,11 +45,7 @@ object zio_http_app extends ZIOAppDefault {
               .status(Status.InternalServerError),
           dataFromCSV => {
             Response.json(
-              sortByField(
-                sortParams.field,
-                sortParams.order,
-                dataFromCSV
-              ).toJson
+              applyAllSortParams(dataFromCSV, sortParams).toJson
             )
           }
         )

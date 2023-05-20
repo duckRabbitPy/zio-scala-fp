@@ -54,9 +54,9 @@ object pureUtils {
     }
   }
 
-  def getFirstFieldAndSortParameter(
+  def getFieldAndSortParameters(
       queryParams: QueryParams
-  ): FieldAndSortParameter = {
+  ): List[FieldAndSortParameter] = {
     val maybeFieldAndSortParameters = queryParams
       .get("sort")
       .map(delimitedStrings =>
@@ -66,8 +66,7 @@ object pureUtils {
 
     processFieldAndSortParameters(
       maybeFieldAndSortParameters
-    )(0)
-    // todo, work with mulitple sort queries
+    )
 
   }
 
@@ -77,8 +76,13 @@ object pureUtils {
       data: List[Row]
   ): List[Row] = {
     val sortedData = data.sortBy { row =>
-      row.entry.get(field.name) match {
-        case Some(id: String) => id.toInt
+      val x = row.entry.get(field.name)
+
+      x match {
+        case Some(id: String) if id == "id" => id.toInt
+        case Some(culinary_score: String)
+            if culinary_score == "culinary_score" =>
+          culinary_score.toInt
         case _ =>
           Int.MaxValue
       }
@@ -86,6 +90,20 @@ object pureUtils {
     sortDirection match {
       case DefinedSortOption.asc => sortedData
       case DefinedSortOption.dsc => sortedData.reverse
+    }
+  }
+
+  def applyAllSortParams(
+      data: List[Row],
+      fieldAndSortParameters: List[FieldAndSortParameter]
+  ): List[Row] = {
+    fieldAndSortParameters.foldLeft(data) { (acc, fieldAndSortParameters) =>
+      sortByField(
+        fieldAndSortParameters.field,
+        fieldAndSortParameters.order,
+        acc
+      )
+
     }
   }
 }
