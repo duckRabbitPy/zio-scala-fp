@@ -41,10 +41,21 @@ object filterUtils {
 
   }
 
-  def checkIfRowMeetsFilterCondition(field: Field, filter: Filter, row: Row) = {
-    row.entry.get(field.name) match
-      case Some(value: String) if value == filter.rawString => true
-      case _                                                => false
+  def checkIfRowMeetsFilterCondition(
+      allFilters: Iterable[FieldAndFilterParameter],
+      row: Row
+  ) = {
+    allFilters match
+      case allFilters
+          if allFilters
+            .map(f => {
+              row.entry.get(f.field.name) match
+                case Some(value: String) if value == f.filter.rawString => true
+                case _                                                  => false
+            })
+            .forall(_ == true) =>
+        true
+      case _ => false
 
   }
 
@@ -57,15 +68,8 @@ object filterUtils {
     val allFilters =
       fields.flatMap(field => getFieldFilters(Field(field), filterParams))
 
-    allFilters.foldLeft(rows) { (acc, fieldAndFilterParameter) =>
-      acc.filter(row =>
-        checkIfRowMeetsFilterCondition(
-          fieldAndFilterParameter.field,
-          fieldAndFilterParameter.filter,
-          row
-        )
-      )
-    }
+    rows.filter(row => checkIfRowMeetsFilterCondition(allFilters, row))
+
   }
 
 }
