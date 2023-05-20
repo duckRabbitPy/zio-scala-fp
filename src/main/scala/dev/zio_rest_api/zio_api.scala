@@ -14,7 +14,8 @@ import scala.collection.immutable
 import zio.json._
 import com.github.tototoshi.csv.CSVReader
 import fileUtils._
-import pureUtils._
+import sortUtils._
+import filterUtils._
 
 object zio_http_app extends ZIOAppDefault {
   val csvFileStore =
@@ -33,12 +34,14 @@ object zio_http_app extends ZIOAppDefault {
       ZIO.succeed(
         Response(
           Status.Ok,
-          body = Body.fromString(req.url.queryParams.toString()),
+          body = Body.fromString(
+            req.url.queryParams.toString()
+          ),
           headers = Headers.empty
         )
       )
 
-    case req @ Method.GET -> !! / "rows" => {
+    case req @ Method.GET -> !! / "mushrooms" => {
 
       readCSVwithHeaders(csvFileStore)
         .map(rows => sanitiseCSV(rows))
@@ -51,7 +54,10 @@ object zio_http_app extends ZIOAppDefault {
           dataFromCSV => {
             Response.json(
               applyAllSortParams(
-                dataFromCSV,
+                applyAllFilters(
+                  getFieldAndFilterParameters(req.url.queryParams),
+                  dataFromCSV
+                ),
                 getFieldAndSortParameters(req.url.queryParams)
               ).toJson
             )
@@ -59,37 +65,6 @@ object zio_http_app extends ZIOAppDefault {
         )
 
     }
-
-    case req @ Method.POST -> !! / "store" => {
-
-      val maybeLog = for {
-        logJSON <- ZIO
-          .succeed(req.body.asString)
-          .map(s => s.map(str => Console.println(str)))
-        _ <- logJSON
-
-      } yield (Response(body = Body.fromString("ok"), status = Status.Ok))
-
-      maybeLog.fold(
-        err =>
-          Response(
-            body = Body.fromString("error"),
-            status = Status.InternalServerError
-          ),
-        ok => Response(body = Body.fromString("ok"), status = Status.Ok)
-      )
-
-    }
-
-    case _ =>
-      ZIO.succeed(
-        Response(
-          body = Body.fromString(
-            "No route was found matching the URL and request method"
-          ),
-          status = Status.NotFound
-        )
-      )
 
   }
   val PORT = 9000

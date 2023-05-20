@@ -31,3 +31,7 @@ object JsonBody {
   implicit val encoder: JsonEncoder[JsonBody] =
     DeriveJsonEncoder.gen[JsonBody]
 }
+
+case class FieldAndFilterParameter(field: Field, filter: Filter)
+
+case class Filter(rawString: String)

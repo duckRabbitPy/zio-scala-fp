@@ -1,11 +1,11 @@
 package dev.zio_rest_api
-
+import zio.ZIOAppDefault
 import zio.http.QueryParams
 import zio.Chunk
 import scala.util.Try
 import java.time.LocalDate
 
-object pureUtils {
+object sortUtils {
 
   def getSortOption(str: String): DefinedSortOption =
     str match
@@ -72,8 +72,6 @@ object pureUtils {
 
   }
 
-  val schema = Map("id" -> "")
-
   def canParseToInt(str: String): Boolean = {
     Try(str.toInt).isSuccess
   }
@@ -88,9 +86,7 @@ object pureUtils {
       data: List[Row]
   ): List[Row] = {
     val sortedData = data.sortBy { row =>
-      val x = row.entry.get(field.name)
-
-      x match {
+      row.entry.get(field.name) match {
         case Some(numericStr: String) if canParseToInt(numericStr) =>
           numericStr.toInt
         case Some(dateStr: String) if canParseToDate(dateStr) =>
