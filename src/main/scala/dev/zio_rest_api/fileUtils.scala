@@ -10,16 +10,23 @@ import java.io.File
 
 object fileUtils {
 
-  val Store =
-    System.getProperty(
-      "user.dir"
-    ) + "/src/main/resources/CSVstore.csv"
-
-  def readCSVwithHeaders(): ZIO[Any, Throwable, List[Row]] = {
+  def readCSVwithHeaders(
+      csvFilePath: String
+  ): ZIO[Any, Throwable, List[Row]] = {
     val reader = ZIO
-      .attempt(CSVReader.open(new File(Store)))
+      .attempt(CSVReader.open(new File(csvFilePath)))
 
     reader.map(safeReader => safeReader.allWithHeaders().map(r => Row(r)))
+
+  }
+
+  def sanitiseCSV(rows: List[Row]) = {
+    rows.filter { row =>
+      row.entry.get("id") match {
+        case Some(id) if id.nonEmpty => true
+        case _                       => false
+      }
+    }
 
   }
 

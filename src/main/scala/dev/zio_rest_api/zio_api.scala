@@ -17,6 +17,10 @@ import fileUtils._
 import pureUtils._
 
 object zio_http_app extends ZIOAppDefault {
+  val csvFileStore =
+    System.getProperty(
+      "user.dir"
+    ) + "/src/main/resources/CSVstore.csv"
 
   val zioApi: Http[Any, Response, Request, Response] = Http.collectZIO {
     case req @ Method.GET -> !! / "mushroom" => {
@@ -36,16 +40,20 @@ object zio_http_app extends ZIOAppDefault {
 
     case req @ Method.GET -> !! / "rows" => {
 
-      val sortParams = getFieldAndSortParameters(req.url.queryParams)
-
-      readCSVwithHeaders()
+      readCSVwithHeaders(csvFileStore)
+        .map(rows => sanitiseCSV(rows))
         .fold(
           fail =>
-            Response
-              .status(Status.InternalServerError),
+            Response(
+              Status.InternalServerError,
+              body = Body.fromString(fail.getMessage())
+            ),
           dataFromCSV => {
             Response.json(
-              applyAllSortParams(dataFromCSV, sortParams).toJson
+              applyAllSortParams(
+                dataFromCSV,
+                getFieldAndSortParameters(req.url.queryParams)
+              ).toJson
             )
           }
         )
