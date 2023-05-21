@@ -10,6 +10,15 @@ import java.io.File
 
 object fileUtils {
 
+  def getCSVPath(route: String) = {
+
+    route match
+      case "mushrooms" => Some("src/main/resources/CSVmushroomStore.csv")
+      case "frogs"     => Some("src/main/resources/CSVfrogStore.csv")
+      case _           => None
+
+  }
+
   def readCSVwithHeaders(
       csvFilePath: String
   ): ZIO[Any, Throwable, List[Row]] = {

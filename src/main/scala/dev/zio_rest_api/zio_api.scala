@@ -16,57 +16,38 @@ import com.github.tototoshi.csv.CSVReader
 import fileUtils._
 import sortUtils._
 import filterUtils._
+import pagination._
 
 object zio_http_app extends ZIOAppDefault {
-  val csvFileStore =
-    System.getProperty(
-      "user.dir"
-    ) + "/src/main/resources/CSVstore.csv"
 
   val zioApi: Http[Any, Response, Request, Response] = Http.collectZIO {
-    case req @ Method.GET -> !! / "mushroom" => {
-      ZIO.succeed(
-        Response.json(Mushroom("amanita muscaria").toJsonPretty)
-      )
-    }
 
-    case req @ Method.GET -> !! / "params" =>
-      ZIO.succeed(
-        Response(
-          Status.Ok,
-          body = Body.fromString(
-            req.url.queryParams.toString()
+    case req @ Method.GET -> !! / "mushrooms" =>
+      val filterParams = getFieldAndFilterParameters(req.url.queryParams)
+      val sortParams = getFieldAndSortParameters(req.url.queryParams)
+      val paginationParams = getPaginationParameters(req.url.queryParams)
+
+      val proccessedData = for {
+        rows <- readCSVwithHeaders(
+          getCSVPath("mushrooms").getOrElse("invalid path")
+        )
+        sanitizedRows = sanitiseCSV(rows)
+        filteredRows = applyAllFilters(filterParams, sanitizedRows)
+        sortedRows = applyAllSortParams(sortParams, filteredRows)
+        paginatedRows = applyPagination(paginationParams, sortedRows)
+      } yield paginatedRows
+
+      proccessedData.fold(
+        fail =>
+          Response(
+            Status.InternalServerError,
+            body = Body.fromString(fail.getMessage())
           ),
-          headers = Headers.empty
-        )
+        data => Response.json(data.toJson)
       )
-
-    case req @ Method.GET -> !! / "mushrooms" => {
-
-      readCSVwithHeaders(csvFileStore)
-        .map(rows => sanitiseCSV(rows))
-        .fold(
-          fail =>
-            Response(
-              Status.InternalServerError,
-              body = Body.fromString(fail.getMessage())
-            ),
-          dataFromCSV => {
-            Response.json(
-              applyAllSortParams(
-                applyAllFilters(
-                  getFieldAndFilterParameters(req.url.queryParams),
-                  dataFromCSV
-                ),
-                getFieldAndSortParameters(req.url.queryParams)
-              ).toJson
-            )
-          }
-        )
-
-    }
 
   }
+
   val PORT = 9000
 
   override val run =

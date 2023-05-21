@@ -104,8 +104,8 @@ object sortUtils {
   }
 
   def applyAllSortParams(
-      data: List[Row],
-      fieldAndSortParameters: List[FieldAndSortParameter]
+      fieldAndSortParameters: List[FieldAndSortParameter],
+      data: List[Row]
   ): List[Row] = {
     fieldAndSortParameters.foldLeft(data) { (acc, fieldAndSortParameters) =>
       sortByField(
