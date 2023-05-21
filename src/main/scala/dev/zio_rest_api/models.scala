@@ -34,4 +34,31 @@ object JsonBody {
 
 case class FieldAndFilterParameter(field: Field, filter: Filter)
 
-case class Filter(rawString: String)
+case class ComparisonLogic(operator: Operator, value: String)
+
+enum Operator(val value: String):
+  case isEqualTo extends Operator("eq")
+  case greaterThan extends Operator("gt")
+  case greaterThanOrEqualTo extends Operator("gte")
+  case lessThan extends Operator("lt")
+  case lessThanOrEqualTo extends Operator("lte")
+
+def checkOperator(maybeValidOperator: String): Option[Operator] =
+  Operator.values.find(_.value == maybeValidOperator)
+
+case class Filter(rawString: String) {
+
+  private val splitOnColon: Array[String] = rawString.split(":")
+
+  private val validOperator: Option[Operator] =
+    splitOnColon.headOption.flatMap(checkOperator)
+
+  val comparisonLogic: Option[ComparisonLogic] = splitOnColon match {
+    case Array(value) =>
+      Some(ComparisonLogic(Operator.isEqualTo, value))
+    case Array(operatorStr, value) if validOperator.isDefined =>
+      Some(ComparisonLogic(validOperator.get, value))
+    case _ =>
+      None
+  }
+}

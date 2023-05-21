@@ -41,6 +41,34 @@ object filterUtils {
 
   }
 
+  def valuesCompariable(a: String, b: String): Boolean = {
+    return canParseToInt(a) && canParseToInt(b)
+  }
+
+  def meetsCondition(value: String, filterCondition: Filter): Boolean = {
+
+    val comparisonLogic = filterCondition.comparisonLogic
+
+    comparisonLogic.exists { comparison =>
+      comparison.operator match {
+        case Operator.isEqualTo => value == comparison.value
+        case Operator.greaterThan
+            if valuesCompariable(value, comparison.value) =>
+          value > comparison.value
+        case Operator.greaterThanOrEqualTo
+            if valuesCompariable(value, comparison.value) =>
+          value >= comparison.value
+        case Operator.lessThan if valuesCompariable(value, comparison.value) =>
+          value < comparison.value
+        case Operator.lessThanOrEqualTo
+            if valuesCompariable(value, comparison.value) =>
+          value <= comparison.value
+        case _ => true
+
+      }
+    }
+  }
+
   def checkIfRowMeetsFilterCondition(
       allFilters: Iterable[FieldAndFilterParameter],
       row: Row
@@ -48,10 +76,12 @@ object filterUtils {
     allFilters match
       case allFilters
           if allFilters
-            .map(f => {
-              row.entry.get(f.field.name) match
-                case Some(value: String) if value == f.filter.rawString => true
-                case _                                                  => false
+            .map(fromQueryParam => {
+              row.entry.get(fromQueryParam.field.name) match
+                case Some(value: String)
+                    if meetsCondition(value, fromQueryParam.filter) =>
+                  true
+                case _ => false
             })
             .forall(_ == true) =>
         true

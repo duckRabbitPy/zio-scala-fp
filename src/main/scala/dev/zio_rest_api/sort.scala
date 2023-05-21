@@ -72,14 +72,6 @@ object sortUtils {
 
   }
 
-  def canParseToInt(str: String): Boolean = {
-    Try(str.toInt).isSuccess
-  }
-
-  def canParseToDate(str: String): Boolean = {
-    Try(LocalDate.parse(str)).isSuccess
-  }
-
   def sortByField(
       field: Field,
       sortDirection: DefinedSortOption,
