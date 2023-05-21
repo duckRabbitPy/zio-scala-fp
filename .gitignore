@@ -1,7 +1,10 @@
 target/
 .idea/
-project
-src/main/resources/
+project/*
+!project/plugins.sbt
+src/main/resources/*
+!src/main/resources/CSVstore.csv
+!src/main/resources/client.html
 .bsp
 .vscode
 .metals

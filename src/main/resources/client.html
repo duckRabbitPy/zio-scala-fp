@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Simple Form</title>
+    <style>
+      .undoModeStyle {
+        color: blue;
+      }
+    </style>
+  </head>
+  <body onload="getTasks()">
+    <form id="Form" onsubmit="addTask()">
+      <label>
+        Input:
+        <input type="text" name="input" id="input" />
+        <button type="submit">Submit</button>
+      </label>
+      <ul id="Output"></ul>
+      <br />
+    </form>
+    <form id="Undo" onsubmit="undoLast()">
+      <button name="Undo" id="undo">Undo</button>
+    </form>
+
+    <script>
+      document.getElementById("Form").addEventListener("submit", (e) => {
+        e.preventDefault();
+      });
+
+      document.getElementById("Undo").addEventListener("submit", (e) => {
+        e.preventDefault();
+      });
+
+      function updateClientList(stream) {
+        const decoder = new TextDecoder();
+        const reader = stream.getReader();
+        const readStream = (chunks = "") => {
+          reader
+            .read()
+            .then(({ done, value }) => {
+              if (done) {
+                const output = document.getElementById("Output");
+                output.innerHTML = "";
+                renderLinesFromStream(chunks);
+                document.getElementById("input").value = "";
+              } else {
+                chunks += decoder.decode(value);
+                readStream(chunks);
+              }
+            })
+            .catch((error) => {
+              console.error(error);
+            });
+        };
+        readStream();
+      }
+
+      function addTasksToDOM(lines, omitDeleteBtn) {
+        if (lines.length === 1 && lines[0].length < 1) return;
+        lines.forEach((line, index) => {
+          const node = document.createElement("li");
+          node.style = "display: flex; gap: 0.5rem; padding: 0.5rem;";
+          const delButton = document.createElement("button");
+          delButton.innerHTML = "X";
+          delButton.addEventListener("click", (event) => {
+            event.preventDefault();
+            console.log(index);
+            deleteLine(index);
+          });
+          node.appendChild(document.createTextNode(line));
+          document
+            .getElementById("Output")
+            .appendChild(node)
+            .appendChild(delButton);
+        });
+      }
+      const renderLinesFromStream = (chunks) => {
+        const lines = chunks.trim().split("\n");
+        addTasksToDOM(lines);
+      };
+
+      function readBodyStream(stream) {
+        const decoder = new TextDecoder();
+        const reader = stream.getReader();
+        const readStream = (chunks = "") => {
+          reader
+            .read()
+            .then(({ done, value }) => {
+              if (done) {
+                renderLinesFromStream(chunks);
+              } else {
+                chunks += decoder.decode(value);
+                readStream(chunks);
+              }
+            })
+            .catch((error) => {
+              console.error(error);
+            });
+        };
+
+        readStream();
+      }
+
+      function getTasks() {
+        fetch("http://localhost:9000/alltasks")
+          .then((response) => {
+            const stream = response.body;
+            readBodyStream(stream);
+          })
+          .catch((error) => {
+            console.error(error);
+          });
+      }
+
+      function addTask() {
+        const url = "http://localhost:9000/add-task";
+        const input = document.getElementById("input").value;
+        const options = {
+          method: "POST",
+          body: input,
+        };
+        return fetch(url, options)
+          .then((response) => {
+            if (!response.ok) {
+              throw new Error(
+                `Request failed with status code ${response.status}`
+              );
+            }
+            const stream = response.body;
+            updateClientList(stream);
+          })
+          .catch((error) => {
+            console.error(error);
+          });
+      }
+
+      function deleteLine(lineNumber) {
+        const url = "http://localhost:9000/delete-task";
+        const options = {
+          method: "POST",
+          body: lineNumber,
+        };
+
+        return fetch(url, options).then((response) => {
+          if (!response.ok) {
+            throw new Error(
+              `Request failed with status code ${response.status}`
+            );
+          }
+          const stream = response.body;
+          updateClientList(stream);
+        });
+      }
+
+      function undoLast() {
+        const output = document.getElementById("Output");
+        output.innerHTML = "";
+        output.classList.add("undoModeStyle");
+        fetch("http://localhost:9000/undo")
+          .then((response) => {
+            const stream = response.body;
+            readBodyStream(stream);
+          })
+          .catch((error) => {
+            console.error(error);
+          });
+      }
+    </script>
+  </body>
+</html>

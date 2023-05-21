@@ -13,9 +13,8 @@ import java.nio.file.{Files, Path, Paths}
 import _root_.java.io.IOException
 import java.time.LocalDateTime
 import scala.collection.immutable
+import zio.ZIOApp
 
-// To run with vscode metals + P: metals.run-current-file
-// key binding ctrl + option + cmd + r
 object zio_http_app extends ZIOAppDefault {
 
   val Store =
@@ -24,6 +23,8 @@ object zio_http_app extends ZIOAppDefault {
   val History = Paths.get(
     System.getProperty("user.dir") + "/src/main/resources/versionHistory.txt"
   )
+
+  val taskSeperator = "-----------------------"
 
   def getFileContentString(
       filePath: Path
@@ -34,8 +35,9 @@ object zio_http_app extends ZIOAppDefault {
 
   }
 
-  def contentStringToZStream(string: String) = {
-
+  def contentStringToZStream(
+      string: String
+  ): ZStream[Any, IOException, Byte] = {
     ZStream
       .fromInputStream(
         new ByteArrayInputStream(
@@ -93,17 +95,17 @@ object zio_http_app extends ZIOAppDefault {
     ZIO.attempt(maybeLineNumber.toInt)
   }
 
-  def saveToVersionHistory(stream: ZStream[Any, IOException, Byte]) = {
+  def saveToVersionHistory(stream: ZStream[Any, Throwable, Byte]) = {
     for {
       txt <- ZBytestreamToContentString(stream)
       _ <- appendToExistingFile(
         txt,
         History,
-        "\n" + LocalDateTime.now().toString() + "\n"
+        "Updated at: " + LocalDateTime.now().toString()
       )
       _ <- appendToExistingFile(
         "\n" +
-          "-----------------------",
+          taskSeperator,
         History
       )
     } yield stream
@@ -113,7 +115,6 @@ object zio_http_app extends ZIOAppDefault {
   def writeToTxtStore(
       stream: ZStream[Any, IOException, Byte]
   ) = {
-
     for {
       _ <- stream >>> writePath(Paths.get(dbLocation + "db1.txt"))
       _ <- saveToVersionHistory(stream)
@@ -143,6 +144,21 @@ object zio_http_app extends ZIOAppDefault {
       _ <- writeToTxtStore(stream)
     } yield stream
 
+  }
+
+  def foldIntoFinalResponse(maybeResult: ZIO[Any, Any, Response]) = {
+
+    maybeResult
+      .mapError(e => CustomError(e.toString()))
+      .fold(
+        e =>
+          Response(
+            status = Status.BadRequest,
+            headers = Headers.empty,
+            body = Body.fromString(e.errorMessage)
+          ),
+        successResponse => successResponse
+      )
   }
 
   val app: App[Any] =
@@ -180,21 +196,74 @@ object zio_http_app extends ZIOAppDefault {
 
     }
 
-  val collectZIOApp: App[Any] = Http.collectZIO {
-    case req @ Method.POST -> !! / "add-task" => {
-      val written = for {
-        input <- req.body.asString
-        newFileContent <- appendToExistingFile(input, Store).provideLayer(
+  sealed trait MyError
+  case class CustomError(errorMessage: String) extends MyError
+
+  def LastItemInHistory(
+      maybeVersionHistory: ZIO[FileConnector, Throwable, String]
+  ): ZIO[FileConnector, Throwable, ZIO[Any, CustomError, String]] = {
+
+    val maybeHistoryArr = for {
+      versionHistory <- maybeVersionHistory
+    } yield versionHistory.split(taskSeperator)
+
+    for {
+      historyArr <- maybeHistoryArr
+    } yield {
+      if (historyArr.length > 1) {
+        ZIO.succeed(historyArr(historyArr.length - 2))
+      } else {
+        ZIO.fail(CustomError("No items in history"))
+      }
+    }
+
+  }
+
+  def removeLastTaskItem(str: String): String = {
+    // remove metadata and last item
+    str.split("\n").dropRight(2).mkString("\n")
+  }
+
+  val collectZIOApp: Http[Any, Response, Request, Response] = Http.collectZIO {
+    case req @ Method.GET -> !! / "undo" => {
+      val versionHistory = for {
+        pastLists <- getFileContentString(History)
+      } yield (pastLists)
+
+      val maybeSuccessResponse = for {
+        tasksOrUndoErr <- LastItemInHistory(versionHistory)
+        tasks <- tasksOrUndoErr
+      } yield (
+        Response(
+          body = Body
+            .fromString(
+              removeLastTaskItem(tasks)
+            ),
+          status = Status.Ok
+        )
+      )
+
+      foldIntoFinalResponse(
+        maybeSuccessResponse.provideLayer(
           zio.connect.file.fileConnectorLiveLayer
         )
+      )
+
+    }
+    case req @ Method.POST -> !! / "add-task" => {
+      val maybeAddedTaskList = for {
+        input <- req.body.asString
+        newFileContent <- appendToExistingFile(input, Store)
+        _ <- saveToVersionHistory(newFileContent)
         newTasks <- ZBytestreamToContentString(newFileContent)
       } yield (
         Response(body = Body.fromString(newTasks), status = Status.Ok)
       )
 
-      written.fold(
-        _ => Response.status(Status.BadRequest),
-        successResponse => successResponse
+      foldIntoFinalResponse(
+        maybeAddedTaskList.provideLayer(
+          zio.connect.file.fileConnectorLiveLayer
+        )
       )
 
     }
@@ -207,14 +276,14 @@ object zio_http_app extends ZIOAppDefault {
         )
       } yield (updatedFileContent)
 
-      val res = for {
+      val maybeNewList = for {
         newFileContent <- maybeNewFileContent
         newTasks <- ZBytestreamToContentString(newFileContent)
       } yield (
         Response(body = Body.fromString(newTasks), status = Status.Ok)
       )
 
-      res.fold(_ => Response.status(Status.BadRequest), success => success)
+      foldIntoFinalResponse(maybeNewList)
     }
 
   }
