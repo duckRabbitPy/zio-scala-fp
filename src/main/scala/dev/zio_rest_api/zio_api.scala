@@ -17,25 +17,60 @@ import fileUtils._
 import sortUtils._
 import filterUtils._
 import pagination._
+import zio.http.Header.Date
+import java.time.format.DateTimeFormatter
 
 object zio_http_app extends ZIOAppDefault {
-
+  val testRouteForDev = "mushrooms"
   val zioApi: Http[Any, Response, Request, Response] = Http.collectZIO {
 
-    case req @ Method.GET -> !! / "mushrooms" =>
+    case req @ Method.GET -> !! / testRouteForDev =>
       val filterParams = getFieldAndFilterParameters(req.url.queryParams)
       val sortParams = getFieldAndSortParameters(req.url.queryParams)
       val paginationParams = getPaginationParameters(req.url.queryParams)
+      val resourcePath =
+        getCSVPath(testRouteForDev).getOrElse("invalid path")
 
       val proccessedData = for {
+        headers <- getCSVHeaders(
+          resourcePath
+        )
+        _ <- checkCSVHeaders(headers)
         rows <- readCSVwithHeaders(
-          getCSVPath("mushrooms").getOrElse("invalid path")
+          resourcePath
         )
         sanitizedRows = sanitiseCSV(rows)
         filteredRows = applyAllFilters(filterParams, sanitizedRows)
         sortedRows = applyAllSortParams(sortParams, filteredRows)
         paginatedRows = applyPagination(paginationParams, sortedRows)
-      } yield paginatedRows
+        typedRows = applyTypeSchema[MushroomSchema](
+          paginatedRows
+        )
+
+      } yield typedRows
+
+      proccessedData
+        .fold(
+          fail =>
+            Response(
+              Status.InternalServerError,
+              body = Body.fromString(fail.getMessage())
+            ),
+          data => Response.json(data.toJson)
+        )
+        .debug("error")
+
+    case req @ Method.GET -> !! / testRouteForDev / "metadata" =>
+      val resourcePath =
+        getCSVPath(testRouteForDev).getOrElse("invalid path")
+
+      val proccessedData = for {
+        headers <- getCSVHeaders(
+          resourcePath
+        )
+        totalCount <- getTotalRowCount(resourcePath)
+
+      } yield MetaData(headers, totalCount)
 
       proccessedData.fold(
         fail =>

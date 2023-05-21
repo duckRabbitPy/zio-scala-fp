@@ -71,7 +71,7 @@ object filterUtils {
 
   def checkIfRowMeetsFilterCondition(
       allFilters: Iterable[FieldAndFilterParameter],
-      row: Row
+      row: UntypedRow
   ) = {
     allFilters match
       case allFilters
@@ -91,8 +91,8 @@ object filterUtils {
 
   def applyAllFilters(
       filterParams: FilterQueryParams,
-      rows: List[Row]
-  ): List[Row] = {
+      rows: List[UntypedRow]
+  ): List[UntypedRow] = {
     val fields = rows(0).entry.keys
 
     val allFilters =

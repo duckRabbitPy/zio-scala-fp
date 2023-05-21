@@ -4,6 +4,7 @@ import zio.http.QueryParams
 import zio.Chunk
 import scala.util.Try
 import java.time.LocalDate
+import java.time.format.DateTimeFormatter
 
 object sortUtils {
 
@@ -75,8 +76,10 @@ object sortUtils {
   def sortByField(
       field: Field,
       sortDirection: DefinedSortOption,
-      data: List[Row]
-  ): List[Row] = {
+      data: List[UntypedRow]
+  ): List[UntypedRow] = {
+    val dateFormat = DateTimeFormatter.ISO_DATE
+
     val sortedData = data.sortBy { row =>
       row.entry.get(field.name) match {
         case Some(numericStr: String) if canParseToInt(numericStr) =>
@@ -87,6 +90,7 @@ object sortUtils {
         case _ =>
           Int.MaxValue
       }
+
     }(Ordering.fromLessThan { (a, b) =>
       (a, b) match {
         case (numericA: Int, numericB: Int) => numericA < numericB
@@ -105,8 +109,8 @@ object sortUtils {
 
   def applyAllSortParams(
       fieldAndSortParameters: List[FieldAndSortParameter],
-      data: List[Row]
-  ): List[Row] = {
+      data: List[UntypedRow]
+  ): List[UntypedRow] = {
     fieldAndSortParameters.foldLeft(data) { (acc, fieldAndSortParameters) =>
       sortByField(
         fieldAndSortParameters.field,
@@ -116,4 +120,5 @@ object sortUtils {
 
     }
   }
+
 }

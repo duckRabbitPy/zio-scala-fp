@@ -186,14 +186,6 @@ object zio_http_app extends ZIOAppDefault {
           ),
           headers = Headers.empty
         )
-      case Method.GET -> !! / "params" =>
-        Response(
-          Status.Ok,
-          body =
-            Body.fromString(QueryParams("q" -> Chunk("a", "b", "c")).toString),
-          headers = Headers.empty
-        )
-
     }
 
   sealed trait MyError

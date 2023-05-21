@@ -15,7 +15,6 @@ object zio_cli extends ZIOAppDefault {
     _ <- handleUserCommand(command)
   } yield ()
 
-
   override def run: ZIO[ZIOAppArgs with Scope, Any, Any] = {
     myService.provideLayer(zio.connect.file.fileConnectorLiveLayer)
   }
