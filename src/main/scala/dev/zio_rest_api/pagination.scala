@@ -37,17 +37,14 @@ object pagination {
 
   def applyPagination(
       pagination: PaginationParams,
-      rows: List[Row]
+      rows: List[UntypedRow]
   ) = {
 
-    val startIndex = pagination.offset
-    val minIndex = startIndex
-
-    rows.zipWithIndex.collect {
-
-      case (row, index)
-          if index >= minIndex && (index < (minIndex + pagination.limit)) =>
-        row
+    pagination.offset match {
+      case offset if offset < rows.length =>
+        rows.drop(offset).take(pagination.limit)
+      case _ =>
+        List.empty[UntypedRow]
     }
 
   }
