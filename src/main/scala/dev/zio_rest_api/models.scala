@@ -13,13 +13,13 @@ case class StringValue(value: String) extends Value
 case class LocalDateValue(value: LocalDate) extends Value
 
 trait SchemaMapper[A] {
-  def mapFields(row: UntypedRow): A
+  def parseStringsToSchemaTypes(row: UntypedRow): A
 }
 
 def applyTypeSchema[A](
     rows: List[UntypedRow]
 )(implicit mapper: SchemaMapper[A]): List[A] = {
-  rows.flatMap(row => List(mapper.mapFields(row)))
+  rows.flatMap(row => List(mapper.parseStringsToSchemaTypes(row)))
 }
 
 case class MushroomSchema(
@@ -33,7 +33,7 @@ case class MushroomSchema(
 
 implicit val mushroomSchemaMapper: SchemaMapper[MushroomSchema] =
   new SchemaMapper[MushroomSchema] {
-    def mapFields(row: UntypedRow): MushroomSchema = {
+    def parseStringsToSchemaTypes(row: UntypedRow): MushroomSchema = {
       MushroomSchema(
         id = row.entry.getOrElse("id", "").toInt,
         mushroom_name = row.entry.getOrElse("mushroom_name", ""),
@@ -56,7 +56,7 @@ case class FrogSchema(
 
 implicit val frogSchemaMapper: SchemaMapper[FrogSchema] =
   new SchemaMapper[FrogSchema] {
-    def mapFields(row: UntypedRow): FrogSchema = {
+    def parseStringsToSchemaTypes(row: UntypedRow): FrogSchema = {
       FrogSchema(
         id = row.entry.getOrElse("id", "").toInt,
         frog_name = row.entry.getOrElse("frog_name", ""),
