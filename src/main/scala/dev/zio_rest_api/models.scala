@@ -6,12 +6,6 @@ import zio.ZIOAppDefault
 import java.time.format.DateTimeFormatter
 import java.time.LocalDate
 
-sealed trait Value
-case class IntValue(value: Int) extends Value
-case class BoolValue(value: Boolean) extends Value
-case class StringValue(value: String) extends Value
-case class LocalDateValue(value: LocalDate) extends Value
-
 trait SchemaMapper[A] {
   def parseStringsToSchemaTypes(row: UntypedRow): A
 }
@@ -45,6 +39,11 @@ implicit val mushroomSchemaMapper: SchemaMapper[MushroomSchema] =
     }
   }
 
+object MushroomSchema {
+  implicit val encoder: JsonEncoder[MushroomSchema] =
+    DeriveJsonEncoder.gen[MushroomSchema]
+}
+
 case class FrogSchema(
     id: Int,
     frog_name: String,
@@ -67,11 +66,6 @@ implicit val frogSchemaMapper: SchemaMapper[FrogSchema] =
       )
     }
   }
-
-object MushroomSchema {
-  implicit val encoder: JsonEncoder[MushroomSchema] =
-    DeriveJsonEncoder.gen[MushroomSchema]
-}
 
 object FrogSchema {
   implicit val encoder: JsonEncoder[FrogSchema] =
@@ -98,13 +92,6 @@ enum DefinedSortOption(val value: String):
   case dsc extends DefinedSortOption("dsc")
 
 case class SortOption(option: DefinedSortOption)
-
-case class JsonBody(data: List[MushroomSchema])
-
-object JsonBody {
-  implicit val encoder: JsonEncoder[JsonBody] =
-    DeriveJsonEncoder.gen[JsonBody]
-}
 
 case class FieldAndFilterParameter(field: Field, filter: Filter)
 
