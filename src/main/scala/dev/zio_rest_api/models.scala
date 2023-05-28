@@ -6,6 +6,8 @@ import zio.ZIOAppDefault
 import java.time.format.DateTimeFormatter
 import java.time.LocalDate
 
+sealed trait DefinedCSVSchema
+
 trait SchemaMapper[A] {
   def parseStringsToSchemaTypes(row: UntypedRow): A
 }
@@ -23,7 +25,7 @@ case class MushroomSchema(
     culinary_score: Int,
     last_updated: String,
     endangered: Boolean
-)
+) extends DefinedCSVSchema
 
 implicit val mushroomSchemaMapper: SchemaMapper[MushroomSchema] =
   new SchemaMapper[MushroomSchema] {
@@ -51,7 +53,7 @@ case class FrogSchema(
     leap_score: Int,
     last_updated: String,
     endangered: Boolean
-)
+) extends DefinedCSVSchema
 
 implicit val frogSchemaMapper: SchemaMapper[FrogSchema] =
   new SchemaMapper[FrogSchema] {
@@ -78,7 +80,10 @@ object UntypedRow {
     DeriveJsonEncoder.gen[UntypedRow]
 }
 
-case class MetaData(fields: List[String], totalCount: Int)
+case class MetaData(
+    fields: List[String],
+    totalCount: Int
+)
 
 object MetaData {
   implicit val encoder: JsonEncoder[MetaData] =
