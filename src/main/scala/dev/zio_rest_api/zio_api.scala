@@ -21,14 +21,6 @@ import zio.http.Header.Date
 import java.time.format.DateTimeFormatter
 
 object zio_http_app extends ZIOAppDefault {
-  val MushroomSchemaInstance = MushroomSchema(
-    id = 100000,
-    mushroom_name = "exampleMushroom",
-    culinary_score = 7,
-    habitat = "example",
-    last_updated = "example",
-    endangered = false
-  )
 
   def processCSVStrings(
       req: Request,
@@ -83,6 +75,20 @@ object zio_http_app extends ZIOAppDefault {
 
   }
 
+  def respondOrServerError(
+      fallableResponse: ZIO[Any, Throwable, Response]
+  ) = {
+    fallableResponse.fold(
+      fail =>
+        Response(
+          Status.InternalServerError,
+          body = Body.fromString(fail.getMessage())
+        ),
+      response => response
+    )
+
+  }
+
   val zioApi: Http[Any, Response, Request, Response] = Http.collectZIO {
 
     case req @ Method.GET -> !! / "mushrooms" =>
@@ -93,14 +99,7 @@ object zio_http_app extends ZIOAppDefault {
           .json(applyTypeSchema[MushroomSchema](untypedRows).toJson)
       )
 
-      maybeResponse.fold(
-        fail =>
-          Response(
-            Status.InternalServerError,
-            body = Body.fromString(fail.getMessage())
-          ),
-        response => response
-      )
+      respondOrServerError(maybeResponse)
 
     case req @ Method.GET -> !! / "mushrooms" / "metadata" =>
       getMetaData(
@@ -116,14 +115,7 @@ object zio_http_app extends ZIOAppDefault {
           .json(applyTypeSchema[FrogSchema](untypedRows).toJson)
       )
 
-      val x = maybeResponse.fold(
-        fail =>
-          Response(
-            Status.InternalServerError,
-            body = Body.fromString(fail.getMessage())
-          ),
-        response => response
-      )
+      respondOrServerError(maybeResponse)
 
     case req @ Method.GET -> !! / "frogs" / "metadata" =>
       getMetaData(
