@@ -21,64 +21,106 @@ import zio.http.Header.Date
 import java.time.format.DateTimeFormatter
 
 object zio_http_app extends ZIOAppDefault {
-  val testRouteForDev = "mushrooms"
+
+  def processCSVStrings(
+      req: Request,
+      resource: String
+  ): ZIO[Any, Throwable, List[UntypedRow]] = {
+    val filterParams = getFieldAndFilterParameters(req.url.queryParams)
+    val sortParams = getFieldAndSortParameters(req.url.queryParams)
+    val paginationParams = getPaginationParameters(req.url.queryParams)
+    val resourcePath =
+      getCSVPath(resource).getOrElse("invalid path")
+
+    for {
+      headers <- getCSVHeaders(
+        resourcePath
+      )
+      _ <- checkCSVHeaders(headers)
+      rows <- readCSVwithHeaders(
+        resourcePath
+      )
+      sanitizedRows = sanitiseCSV(rows)
+      filteredRows = applyAllFilters(filterParams, sanitizedRows)
+      sortedRows = applyAllSortParams(sortParams, filteredRows)
+      paginatedRows = applyPagination(paginationParams, sortedRows)
+
+    } yield paginatedRows
+
+  }
+
+  def getMetaData(
+      req: Request,
+      resource: String
+  ) = {
+    val resourcePath =
+      getCSVPath(resource).getOrElse("invalid path")
+
+    val proccessedData = for {
+      headers <- getCSVHeaders(
+        resourcePath
+      )
+      totalCount <- getTotalRowCount(resourcePath)
+
+    } yield MetaData(headers, totalCount)
+
+    proccessedData.fold(
+      fail =>
+        Response(
+          Status.InternalServerError,
+          body = Body.fromString(fail.getMessage())
+        ),
+      data => Response.json(data.toJson)
+    )
+
+  }
+
+  def respondOrServerError(
+      fallableResponse: ZIO[Any, Throwable, Response]
+  ) = {
+    fallableResponse.fold(
+      fail =>
+        Response(
+          Status.InternalServerError,
+          body = Body.fromString(fail.getMessage())
+        ),
+      response => response
+    )
+
+  }
+
   val zioApi: Http[Any, Response, Request, Response] = Http.collectZIO {
 
-    case req @ Method.GET -> !! / testRouteForDev =>
-      val filterParams = getFieldAndFilterParameters(req.url.queryParams)
-      val sortParams = getFieldAndSortParameters(req.url.queryParams)
-      val paginationParams = getPaginationParameters(req.url.queryParams)
-      val resourcePath =
-        getCSVPath(testRouteForDev).getOrElse("invalid path")
+    case req @ Method.GET -> !! / "mushrooms" =>
+      val maybeResponse = for {
+        untypedRows <- processCSVStrings(req, "mushrooms")
+      } yield (
+        Response
+          .json(applyTypeSchema[MushroomSchema](untypedRows).toJson)
+      )
 
-      val proccessedData = for {
-        headers <- getCSVHeaders(
-          resourcePath
-        )
-        _ <- checkCSVHeaders(headers)
-        rows <- readCSVwithHeaders(
-          resourcePath
-        )
-        sanitizedRows = sanitiseCSV(rows)
-        filteredRows = applyAllFilters(filterParams, sanitizedRows)
-        sortedRows = applyAllSortParams(sortParams, filteredRows)
-        paginatedRows = applyPagination(paginationParams, sortedRows)
-        typedRows = applyTypeSchema[MushroomSchema](
-          paginatedRows
-        )
+      respondOrServerError(maybeResponse)
 
-      } yield typedRows
+    case req @ Method.GET -> !! / "mushrooms" / "metadata" =>
+      getMetaData(
+        req,
+        "mushrooms"
+      )
 
-      proccessedData
-        .fold(
-          fail =>
-            Response(
-              Status.InternalServerError,
-              body = Body.fromString(fail.getMessage())
-            ),
-          data => Response.json(data.toJson)
-        )
-        .debug("error")
+    case req @ Method.GET -> !! / "frogs" =>
+      val maybeResponse = for {
+        untypedRows <- processCSVStrings(req, "frogs")
+      } yield (
+        Response
+          .json(applyTypeSchema[FrogSchema](untypedRows).toJson)
+      )
 
-    case req @ Method.GET -> !! / testRouteForDev / "metadata" =>
-      val resourcePath =
-        getCSVPath(testRouteForDev).getOrElse("invalid path")
+      respondOrServerError(maybeResponse)
 
-      val proccessedData = for {
-        headers <- getCSVHeaders(
-          resourcePath
-        )
-        totalCount <- getTotalRowCount(resourcePath)
-
-      } yield MetaData(headers, totalCount)
-
-      proccessedData.fold(
-        fail =>
-          Response(
-            Status.InternalServerError,
-            body = Body.fromString(fail.getMessage())
-          ),
-        data => Response.json(data.toJson)
+    case req @ Method.GET -> !! / "frogs" / "metadata" =>
+      getMetaData(
+        req,
+        "frogs"
       )
 
   }
