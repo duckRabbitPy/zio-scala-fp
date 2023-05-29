@@ -5,6 +5,8 @@ import zio.json.DeriveJsonEncoder
 import zio.ZIOAppDefault
 import java.time.format.DateTimeFormatter
 import java.time.LocalDate
+import zio.{ZIO, Task}
+import scala.util.Try
 
 trait SchemaMapper[A] {
   def parseStringsToSchemaTypes(row: UntypedRow): A
@@ -12,8 +14,20 @@ trait SchemaMapper[A] {
 
 def applyTypeSchema[A](
     rows: List[UntypedRow]
-)(implicit mapper: SchemaMapper[A]): List[A] = {
-  rows.flatMap(row => List(mapper.parseStringsToSchemaTypes(row)))
+)(implicit mapper: SchemaMapper[A]): Task[List[A]] = {
+  ZIO
+    .fromTry(
+      Try {
+        rows.flatMap(row => List(mapper.parseStringsToSchemaTypes(row)))
+      }
+    )
+    .catchAll(e =>
+      ZIO.fail(
+        new RuntimeException(
+          s"Unable to parse CSV strings to schema type provided. ${e.getMessage()}"
+        )
+      )
+    )
 }
 
 case class MushroomSchema(

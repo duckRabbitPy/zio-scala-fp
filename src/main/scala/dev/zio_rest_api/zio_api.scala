@@ -94,9 +94,10 @@ object zio_http_app extends ZIOAppDefault {
     case req @ Method.GET -> !! / "mushrooms" =>
       val maybeResponse = for {
         untypedRows <- processCSVStrings(req, "mushrooms")
+        typedRows <- applyTypeSchema[MushroomSchema](untypedRows)
       } yield (
         Response
-          .json(applyTypeSchema[MushroomSchema](untypedRows).toJson)
+          .json(typedRows.toJson)
       )
 
       respondOrServerError(maybeResponse)
@@ -110,9 +111,10 @@ object zio_http_app extends ZIOAppDefault {
     case req @ Method.GET -> !! / "frogs" =>
       val maybeResponse = for {
         untypedRows <- processCSVStrings(req, "frogs")
+        typedRows <- applyTypeSchema[FrogSchema](untypedRows)
       } yield (
         Response
-          .json(applyTypeSchema[FrogSchema](untypedRows).toJson)
+          .json(typedRows.toJson)
       )
 
       respondOrServerError(maybeResponse)
