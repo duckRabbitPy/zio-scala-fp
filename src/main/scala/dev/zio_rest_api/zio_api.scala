@@ -13,12 +13,14 @@ import java.time.LocalDateTime
 import scala.collection.immutable
 import zio.json._
 import com.github.tototoshi.csv.CSVReader
+import com.github.tototoshi.csv.defaultCSVFormat
 import fileUtils._
 import sortUtils._
 import filterUtils._
 import pagination._
 import zio.http.Header.Date
 import java.time.format.DateTimeFormatter
+import com.github.tototoshi.csv.CSVWriter
 
 object zio_http_app extends ZIOAppDefault {
 
@@ -89,43 +91,94 @@ object zio_http_app extends ZIOAppDefault {
 
   }
 
-  val zioApi: Http[Any, Response, Request, Response] = Http.collectZIO {
+  val zioApiGetHandler: Http[Any, Response, Request, Response] =
+    Http.collectZIO {
 
-    case req @ Method.GET -> !! / "mushrooms" =>
+      case req @ Method.GET -> !! / "mushrooms" =>
+        val maybeResponse = for {
+          untypedRows <- processCSVStrings(req, "mushrooms")
+          typedRows <- applyTypeSchema[MushroomSchema](untypedRows)
+        } yield (
+          Response
+            .json(typedRows.toJson)
+        )
+
+        respondOrServerError(maybeResponse)
+
+      case req @ Method.GET -> !! / "mushrooms" / "metadata" =>
+        getMetaData(
+          req,
+          "mushrooms"
+        )
+
+      case req @ Method.GET -> !! / "frogs" =>
+        val maybeResponse = for {
+          untypedRows <- processCSVStrings(req, "frogs")
+          typedRows <- applyTypeSchema[FrogSchema](untypedRows)
+        } yield (
+          Response
+            .json(typedRows.toJson)
+        )
+
+        respondOrServerError(maybeResponse)
+
+      case req @ Method.GET -> !! / "frogs" / "metadata" =>
+        getMetaData(
+          req,
+          "frogs"
+        )
+
+    }
+
+  val zioApiPostHandler: Http[Any, Response, Request, Response] =
+    Http.collectZIO { case req @ Method.POST -> !! / "mushrooms" =>
+      def writeToCSV(
+          maybeMushrooms: Either[String, List[MushroomSchema]],
+          safeWriter: CSVWriter
+      ): ZIO[Any, Throwable, Unit] = {
+
+        maybeMushrooms match {
+          case Right(mushrooms) =>
+            ZIO.succeed(
+              mushrooms
+                .map(mushroom =>
+                  List(
+                    mushroom.id.toString,
+                    mushroom.mushroom_name,
+                    mushroom.habitat,
+                    mushroom.culinary_score.toString,
+                    mushroom.last_updated,
+                    mushroom.endangered.toString
+                  )
+                )
+                .foreach(untypedRow => safeWriter.writeRow(untypedRow))
+            )
+          case Left(err) => ZIO.fail(new Exception(err))
+        }
+      }
+
+      val resourcePath =
+        getCSVPath("mushrooms").getOrElse("invalid path")
+
+      val writer = ZIO
+        .attempt(CSVWriter.open(new File(resourcePath), append = true))
+
       val maybeResponse = for {
-        untypedRows <- processCSVStrings(req, "mushrooms")
-        typedRows <- applyTypeSchema[MushroomSchema](untypedRows)
+        inputStr <- req.body.asString
+        jsonInput <- ZIO.succeed(inputStr.fromJson[List[MushroomSchema]])
+        safeWriter <- writer
+        _ <- writeToCSV(jsonInput, safeWriter)
+
       } yield (
         Response
-          .json(typedRows.toJson)
+          .text(
+            "hello"
+          )
       )
 
-      respondOrServerError(maybeResponse)
+      respondOrServerError(maybeResponse).debug("j")
 
-    case req @ Method.GET -> !! / "mushrooms" / "metadata" =>
-      getMetaData(
-        req,
-        "mushrooms"
-      )
-
-    case req @ Method.GET -> !! / "frogs" =>
-      val maybeResponse = for {
-        untypedRows <- processCSVStrings(req, "frogs")
-        typedRows <- applyTypeSchema[FrogSchema](untypedRows)
-      } yield (
-        Response
-          .json(typedRows.toJson)
-      )
-
-      respondOrServerError(maybeResponse)
-
-    case req @ Method.GET -> !! / "frogs" / "metadata" =>
-      getMetaData(
-        req,
-        "frogs"
-      )
-
-  }
+    }
 
   val PORT = 9000
 
@@ -133,7 +186,7 @@ object zio_http_app extends ZIOAppDefault {
     for {
       _ <- printLine(s"server starting on port http://localhost:${PORT}/")
       _ <- Server
-        .serve(zioApi)
+        .serve(zioApiGetHandler ++ zioApiPostHandler)
         .provide(Server.defaultWithPort(PORT))
     } yield ()
 }

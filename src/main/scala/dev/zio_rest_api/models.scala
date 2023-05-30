@@ -7,6 +7,8 @@ import java.time.format.DateTimeFormatter
 import java.time.LocalDate
 import zio.{ZIO, Task}
 import scala.util.Try
+import zio.json.JsonDecoder
+import zio.json.DeriveJsonDecoder
 
 trait SchemaMapper[A] {
   def parseStringsToSchemaTypes(row: UntypedRow): A
@@ -30,6 +32,19 @@ def applyTypeSchema[A](
     )
 }
 
+def removeTypesFromRow[A](
+    rows: List[MushroomSchema]
+) = {
+
+  rows.map(row => {
+    row.productIterator.map { case value: AnyVal =>
+      value.toString
+
+    }
+  })
+
+}
+
 case class MushroomSchema(
     id: Int,
     mushroom_name: String,
@@ -37,7 +52,7 @@ case class MushroomSchema(
     culinary_score: Int,
     last_updated: String,
     endangered: Boolean
-)
+) {}
 
 implicit val mushroomSchemaMapper: SchemaMapper[MushroomSchema] =
   new SchemaMapper[MushroomSchema] {
@@ -56,6 +71,8 @@ implicit val mushroomSchemaMapper: SchemaMapper[MushroomSchema] =
 object MushroomSchema {
   implicit val encoder: JsonEncoder[MushroomSchema] =
     DeriveJsonEncoder.gen[MushroomSchema]
+  implicit val decoder: JsonDecoder[MushroomSchema] =
+    DeriveJsonDecoder.gen[MushroomSchema]
 }
 
 case class FrogSchema(
