@@ -10,6 +10,8 @@ Running ZIO program:
 
 4. `sbt` to start sbt terminal then `runMain dev.directoryName.scalafile` is good if you have multiple main classes and only want to choose a single file to run e.g. `runMain dev.zio_rest_api.zio_http_app`
 
+5. java -jar target/scala-3.2.2/learning-scala-fp-assembly-0.1.0-SNAPSHOT.jar to run the jar file
+
 REST api notes:
 
 ## Query params

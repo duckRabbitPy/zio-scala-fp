@@ -1,3 +1,5 @@
+import sbtassembly.MergeStrategy
+
 libraryDependencies += "dev.zio" %% "zio" % "2.0.13"
 libraryDependencies += "dev.zio" %% "zio-streams" % "2.0.13"
 libraryDependencies += "dev.zio" %% "zio-connect-file" % "0.4.4"
@@ -7,3 +9,10 @@ scalaVersion := "3.2.2"
 
 // for rest api
 libraryDependencies += "com.github.tototoshi" %% "scala-csv" % "1.3.10"
+
+
+assemblyMergeStrategy := {
+  case "module-info.class" => MergeStrategy.discard
+  case PathList("META-INF", "io.netty.versions.properties") => MergeStrategy.discard
+  case x => (assemblyMergeStrategy).value(x)
+}
