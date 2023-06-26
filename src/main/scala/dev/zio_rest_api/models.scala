@@ -55,17 +55,15 @@ case class MushroomSchema(
 ) {}
 
 implicit val mushroomSchemaMapper: SchemaMapper[MushroomSchema] =
-  new SchemaMapper[MushroomSchema] {
-    def parseStringsToSchemaTypes(row: UntypedRow): MushroomSchema = {
-      MushroomSchema(
-        id = row.entry.getOrElse("id", "").toInt,
-        mushroom_name = row.entry.getOrElse("mushroom_name", ""),
-        habitat = row.entry.getOrElse("habitat", ""),
-        culinary_score = row.entry.getOrElse("culinary_score", "").toInt,
-        last_updated = row.entry.getOrElse("last_updated", ""),
-        endangered = row.entry.get("endangered").exists(_.toBoolean)
-      )
-    }
+  (row: UntypedRow) => {
+    MushroomSchema(
+      id = row.entry.getOrElse("id", "").toInt,
+      mushroom_name = row.entry.getOrElse("mushroom_name", ""),
+      habitat = row.entry.getOrElse("habitat", ""),
+      culinary_score = row.entry.getOrElse("culinary_score", "").toInt,
+      last_updated = row.entry.getOrElse("last_updated", ""),
+      endangered = row.entry.get("endangered").exists(_.toBoolean)
+    )
   }
 
 object MushroomSchema {
@@ -85,17 +83,15 @@ case class FrogSchema(
 )
 
 implicit val frogSchemaMapper: SchemaMapper[FrogSchema] =
-  new SchemaMapper[FrogSchema] {
-    def parseStringsToSchemaTypes(row: UntypedRow): FrogSchema = {
-      FrogSchema(
-        id = row.entry.getOrElse("id", "").toInt,
-        frog_name = row.entry.getOrElse("frog_name", ""),
-        habitat = row.entry.getOrElse("habitat", ""),
-        leap_score = row.entry.getOrElse("leap_score", "").toInt,
-        last_updated = row.entry.getOrElse("last_updated", ""),
-        endangered = row.entry.get("endangered").exists(_.toBoolean)
-      )
-    }
+  (row: UntypedRow) => {
+    FrogSchema(
+      id = row.entry.getOrElse("id", "").toInt,
+      frog_name = row.entry.getOrElse("frog_name", ""),
+      habitat = row.entry.getOrElse("habitat", ""),
+      leap_score = row.entry.getOrElse("leap_score", "").toInt,
+      last_updated = row.entry.getOrElse("last_updated", ""),
+      endangered = row.entry.get("endangered").exists(_.toBoolean)
+    )
   }
 
 object FrogSchema {
@@ -122,8 +118,6 @@ enum DefinedSortOption(val value: String):
   case asc extends DefinedSortOption("asc")
   case dsc extends DefinedSortOption("dsc")
 
-case class SortOption(option: DefinedSortOption)
-
 case class FieldAndFilterParameter(field: Field, filter: Filter)
 
 case class ComparisonLogic(operator: Operator, value: String)
@@ -148,7 +142,7 @@ case class Filter(rawString: String) {
   val comparisonLogic: Option[ComparisonLogic] = splitOnColon match {
     case Array(value) =>
       Some(ComparisonLogic(Operator.isEqualTo, value))
-    case Array(operatorStr, value) if validOperator.isDefined =>
+    case Array(_, value) if validOperator.isDefined =>
       Some(ComparisonLogic(validOperator.get, value))
     case _ =>
       None

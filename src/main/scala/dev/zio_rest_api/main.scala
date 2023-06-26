@@ -22,7 +22,7 @@ import zio.http.Header.Date
 import java.time.format.DateTimeFormatter
 import com.github.tototoshi.csv.CSVWriter
 
-object zio_http_app extends ZIOAppDefault {
+object main extends ZIOAppDefault {
 
   def processCSVStrings(
       req: Request,

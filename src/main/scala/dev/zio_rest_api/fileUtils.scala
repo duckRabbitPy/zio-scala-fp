@@ -8,7 +8,8 @@ import com.github.tototoshi.csv.defaultCSVFormat
 import zio.ZIO
 import java.io.File
 
-object fileUtils {
+object 
+fileUtils {
 
   def getCSVPath(route: String) = {
 

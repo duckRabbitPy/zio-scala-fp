@@ -7,13 +7,6 @@ object filterUtils {
 
   case class FilterQueryParams(filters: QueryParams)
 
-  implicit class MapExtensions(map: Map[String, Chunk[String]]) {
-    // create my own mapKeys method for queryParams
-    def mapKeys[A](f: String => A): Map[A, Chunk[String]] = {
-      map.map { case (key, value) => f(key) -> value }
-    }
-  }
-
   val reservedKeyWords = List("sort", "limit", "offset")
   def getFieldAndFilterParameters(
       queryParams: QueryParams
@@ -42,7 +35,7 @@ object filterUtils {
   }
 
   def valuesCompariable(a: String, b: String): Boolean = {
-    return canParseToInt(a) && canParseToInt(b)
+    canParseToInt(a) && canParseToInt(b)
   }
 
   def meetsCondition(value: String, filterCondition: Filter): Boolean = {
