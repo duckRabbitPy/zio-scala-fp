@@ -1,5 +1,5 @@
 # Use the official Java base image
-FROM adoptopenjdk:11-jre-hotspot
+FROM azul/zulu-openjdk-alpine:11
 
 # Set the working directory inside the container
 WORKDIR /app
@@ -11,4 +11,6 @@ COPY target/scala-3.2.2/learning-scala-fp-assembly-0.1.0-SNAPSHOT.jar .
 EXPOSE 8080
 
 # Define the command to run your application
-CMD ["java", "-jar", "learning-scala-fp-assembly-0.1.0-SNAPSHOT.jar"]
+CMD ["java", "-jar", "-Dport=8080", "-DisProd=true","learning-scala-fp-assembly-0.1.0-SNAPSHOT.jar"]
+
+

@@ -6,11 +6,26 @@
 app = "scala-api"
 primary_region = "lhr"
 
+[[services]]
+  internal_port = 8080
+  protocol = "tcp"
+  auto_stop_machines = true
+  auto_start_machines = true
+  min_machines_running = 0
 
-[services]
-  [services.http]
-    ports = ["8080"]
-    handlers = ["fly.http.platform"]
-    [[services.http.checks]]
-      type = "http"
-      port = "8080"
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = true
+  auto_start_machines = true
+  min_machines_running = 0
+  [http_service.concurrency]
+    type = "requests"
+    soft_limit = 200
+    hard_limit = 250
+
+# port exposed to world, this is important!
+[[services.ports]]
+    handlers = ["http"]
+    port = 80
+    force_https = true  # optional
