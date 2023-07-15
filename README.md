@@ -38,3 +38,18 @@ e.g.
 habitat=arctic
 leap_score=gt:5
 culinary_score=lte:5
+
+Can create docker image to run locally with:
+`docker build -t my-scala-app .`
+
+## deploying
+
+First time:
+
+`fly launch`
+
+After making changes
+run: `sbt assembly`
+then
+run: `fly deploy -a scala-api`
+then `fly Open`

@@ -180,7 +180,7 @@ object main extends ZIOAppDefault {
 
     }
 
-  val PORT = 9000
+  val PORT = 8080
 
   override val run =
     for {
