@@ -1,0 +1,20 @@
+!**/target
+!**/project/plugins.sbt
+!**/src/main/resources/*
+!**/src/main/resources/CSVstore.csv
+!**/src/main/resources/client.html
+
+# flyctl launch added from .gitignore
+**/.idea
+**/project/*
+**/.bsp
+**/.vscode
+**/.metals
+**/.bloop
+**/**/.DS_Store
+
+# flyctl launch added from .idea/.gitignore
+# Default ignored files
+.idea/shelf
+.idea/workspace.xml
+fly.toml

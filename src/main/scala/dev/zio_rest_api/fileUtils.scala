@@ -7,18 +7,21 @@ import com.github.tototoshi.csv.defaultCSVFormat
 
 import zio.ZIO
 import java.io.File
+import scala.io.Source
 
-object 
-fileUtils {
+object fileUtils {
 
-  def getCSVPath(route: String) = {
+  def getCSVPath(route: String): Option[String] = {
+    val runningInDocker = sys.env.get("RUNNING_IN_DOCKER").exists(_.toBoolean)
+    val baseDir =
+      if (runningInDocker) "/app/src/main/resources/"
+      else "src/main/resources/"
 
-    route match
-      case "test"      => Some("src/main/resources/test.csv")
-      case "mushrooms" => Some("src/main/resources/CSVmushroomStore.csv")
-      case "frogs"     => Some("src/main/resources/CSVfrogStore.csv")
+    route match {
+      case "mushrooms" => Some(s"$baseDir/CSVmushroomStore.csv")
+      case "frogs"     => Some(s"$baseDir/CSVfrogStore.csv")
       case _           => None
-
+    }
   }
 
   def readCSVwithHeaders(

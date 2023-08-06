@@ -128,6 +128,9 @@ object main extends ZIOAppDefault {
           "frogs"
         )
 
+      case req @ Method.GET -> !! / "test" =>
+        ZIO.succeed(Response.text("testing route working"))
+
     }
 
   val zioApiPostHandler: Http[Any, Response, Request, Response] =

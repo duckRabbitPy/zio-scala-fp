@@ -6,7 +6,7 @@ Running ZIO program:
 
 2. `metals + P: metals.run-current-file` works in VScode and metals plugin. (I made key binding `ctrl + option + cmd + r`)
 
-3. `sbt` to start sbt terminal then `~Restart` to run using sbt revolver which is useful for automatically rebuilding when developing HTTP server. Works due to sbt plugin https://github.com/spray/sbt-revolver
+3. `sbt` to start sbt terminal then `~ReStart` to run using sbt revolver which is useful for automatically rebuilding when developing HTTP server. Works due to sbt plugin https://github.com/spray/sbt-revolver
 
 4. `sbt` to start sbt terminal then `runMain dev.directoryName.scalafile` is good if you have multiple main classes and only want to choose a single file to run e.g. `runMain dev.zio_rest_api.zio_http_app`
 
@@ -40,7 +40,16 @@ leap_score=gt:5
 culinary_score=lte:5
 
 Can create docker image to run locally with:
+
+`sbt assembly`
+
+then
+
 `docker build -t my-scala-app .`
+
+run image locally with:
+
+`docker run -p 8080:8080 my-scala-app`
 
 ## deploying
 
@@ -48,8 +57,10 @@ First time:
 
 `fly launch`
 
-After making changes
-run: `sbt assembly`
-then
+After making changes and rebuilding image:
+
 run: `fly deploy -a scala-api`
-then `fly Open`
+
+Access endpoints at:
+
+`https://scala-api.fly.dev:8080/`
